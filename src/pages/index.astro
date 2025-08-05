@@ -8,7 +8,7 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<title>Prompt Pen</title>
+		<title>Prompt Pad</title>
 		<style>
 			* {
 				margin: 0;
@@ -276,7 +276,7 @@
 	<body>
 		<div class="container">
 			<div class="header">
-				<h1 class="title">Prompt Pen</h1>
+				<h1 class="title">Prompt Pad</h1>
 				<div style="display: flex; align-items: center; gap: 12px;">
 					<button id="copyButton" class="copy-button">Copy</button>
 					<div id="saveStatus" class="save-status">Ready</div>
@@ -308,10 +308,9 @@
 
 		<dialog id="welcomeModal" class="modal">
 			<div class="modal-content">
-				<h2 class="modal-title">Welcome to Prompt Pen</h2>
+				<h2 class="modal-title">Welcome to Prompt Pad</h2>
 				<div class="welcome-text">
-					<p>Prompt Pen is a tool for drafting prompts for coding AIs like Jules, Bolt, or Claude Code. It's just a simple text editor with autosave. Its purpose is to make it easier to work on a lengthier prompt without worrying about losing your progress if you get interrupted and switch away for a bit.</p>
-					<p>Vibe coded with <a href="https://bolt.new/" target="_blank" class="bolt-link">Bolt</a></p>
+					<p>Prompt Pad is a tool for drafting prompts for coding AIs like Jules, Bolt, or Claude Code. It's just a simple text editor with autosave. Its purpose is to make it easier to work on a lengthier prompt without worrying about losing your progress if you get interrupted and switch away for a bit.</p>
 				</div>
 				<button id="closeWelcome" class="close-button">Start writing</button>
 			</div>
@@ -327,7 +326,7 @@
 					this.welcomeModal = document.getElementById('welcomeModal');
 					this.closeWelcomeButton = document.getElementById('closeWelcome');
 					this.storageKey = 'text-editor-content';
-					this.welcomeKey = 'prompt-pen-welcomed';
+					this.welcomeKey = 'prompt-pad-welcomed';
 					this.saveTimeout = null;
 					this.saveDelay = 1000; // 1 second delay
 
