@@ -29,6 +29,7 @@
 				flex-direction: column;
 				padding: 20px;
 				max-width: 100%;
+				padding-bottom: 80px; /* Space for toolbar */
 			}
 
 			.header {
@@ -65,22 +66,15 @@
 				color: #27ae60;
 			}
 
-			.editor-container {
-				flex: 1;
-				display: flex;
-				flex-direction: column;
-			}
-
 			.textarea {
-				flex: 1;
 				width: 100%;
 				max-width: 90ch;
 				margin: 0 auto;
-				min-height: 500px;
+				min-height: 100px;
 				padding: 20px;
 				border: 1px solid #e1e8ed;
 				border-radius: 8px;
-				font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+				font-family: inherit;
 				font-size: 16px;
 				line-height: 1.6;
 				resize: none;
@@ -227,6 +221,20 @@
 				text-decoration: underline;
 			}
 
+			.toolbar {
+				position: fixed;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				display: flex;
+				justify-content: flex-end;
+				align-items: center;
+				padding: 12px 20px;
+				background-color: #fcfcfc;
+				border-top: 2px solid #e5e5e5;
+				gap: 16px;
+			}
+
 			@media (max-width: 768px) {
 				.container {
 					padding: 15px;
@@ -235,7 +243,6 @@
 				.textarea {
 					padding: 15px;
 					font-size: 16px;
-					min-height: 400px;
 					max-width: 100%;
 				}
 
@@ -271,26 +278,105 @@
 					padding: 12px;
 				}
 			}
+
+			@media (prefers-color-scheme: dark) {
+				body {
+					background-color: #121212;
+					color: #e0e0e0;
+				}
+
+				.header {
+					border-bottom-color: #333;
+				}
+
+				.title {
+					color: #e0e0e0;
+				}
+
+				.textarea {
+					background-color: #1e1e1e;
+					color: #e0e0e0;
+					border-color: #444;
+				}
+
+				.textarea:focus {
+					border-color: #5fa8e3;
+					box-shadow: 0 0 0 3px rgba(95, 168, 227, 0.2);
+				}
+
+				.textarea::placeholder {
+					color: #666;
+				}
+
+				.toolbar {
+					background-color: #1e1e1e;
+					border-top-color: #333;
+				}
+
+				.copy-button {
+					background-color: #5fa8e3;
+					color: #121212;
+				}
+
+				.copy-button:hover {
+					background-color: #7bb9e8;
+				}
+
+				.modal {
+					background-color: #2b2b2b;
+					box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+				}
+
+				.modal-content {
+					color: #e0e0e0;
+				}
+
+				.modal-title {
+					color: #73c991;
+				}
+
+				.modal-subtitle {
+					color: #aaa;
+				}
+
+				.service-button {
+					background-color: #333;
+					color: #e0e0e0;
+					border-color: #555;
+				}
+
+				.service-button:hover {
+					border-color: #5fa8e3;
+					color: #5fa8e3;
+				}
+
+				.close-button {
+					background-color: #666;
+				}
+
+				.close-button:hover {
+					background-color: #777;
+				}
+			}
 		</style>
 	</head>
 	<body>
 		<div class="container">
 			<div class="header">
 				<h1 class="title">Prompt Pad</h1>
-				<div style="display: flex; align-items: center; gap: 12px;">
-					<button id="copyButton" class="copy-button">Copy</button>
-					<div id="saveStatus" class="save-status">Ready</div>
-				</div>
 			</div>
 			
-			<div class="editor-container">
-				<textarea 
-					id="textEditor" 
-					class="textarea" 
-					placeholder="Start typing... Your text will be automatically saved."
-					spellcheck="true"
-				></textarea>
-			</div>
+			<textarea
+				id="textEditor"
+				class="textarea"
+				placeholder="Start typing... Your text will be automatically saved."
+				spellcheck="true"
+			></textarea>
+		</div>
+
+		<div class="toolbar">
+			<div id="saveStatus" class="save-status">Ready</div>
+			<button id="copyButton" class="copy-button">Copy</button>
 		</div>
 
 		<dialog id="copyModal" class="modal">
@@ -493,6 +579,29 @@
 						this.scrollIntoView({ behavior: 'smooth', block: 'center' });
 					}, 300);
 				});
+			}
+
+			// Visual Viewport API for sticky toolbar
+			if ('visualViewport' in window) {
+				const toolbar = document.querySelector('.toolbar');
+				const textEditor = document.getElementById('textEditor');
+
+				const updateToolbarPosition = () => {
+					const viewport = window.visualViewport;
+					// The bottom inset tells us how much of the viewport is covered by the virtual keyboard
+					const keyboardHeight = window.innerHeight - viewport.height - viewport.offsetTop;
+					toolbar.style.bottom = `${keyboardHeight}px`;
+
+					// Adjust container padding to prevent content from being hidden behind the keyboard
+					const container = document.querySelector('.container');
+					container.style.paddingBottom = `calc(80px + ${keyboardHeight}px)`;
+					textEditor.style.scrollPaddingBottom = `calc(80px + ${keyboardHeight}px)`;
+
+				};
+
+				window.visualViewport.addEventListener('resize', updateToolbarPosition);
+				window.visualViewport.addEventListener('scroll', updateToolbarPosition);
+				updateToolbarPosition(); // Initial call
 			}
 		</script>
 	</body>
