@@ -279,12 +279,6 @@
 				text-overflow: ellipsis;
 			}
 
-			.prompt-item-text {
-				overflow: hidden;
-				text-overflow: ellipsis;
-				white-space: nowrap;
-			}
-
 			.prompt-item:last-child {
 				margin-bottom: 0;
 			}
@@ -298,23 +292,6 @@
 				background-color: #e0eaf3;
 				border-color: #3498db;
 				font-weight: 600;
-			}
-
-			.delete-prompt-button {
-				background: none;
-				border: none;
-				color: #95a5a6;
-				cursor: pointer;
-				font-size: 16px;
-				padding: 4px;
-				line-height: 1;
-				border-radius: 4px;
-				margin-left: 12px;
-			}
-
-			.delete-prompt-button:hover {
-				color: #e74c3c;
-				background-color: #f5e8e7;
 			}
 
 			@media (max-width: 768px) {
@@ -467,15 +444,6 @@
 				.prompt-item.active {
 					background-color: #3a4a5a;
 					border-color: #5fa8e3;
-				}
-
-				.delete-prompt-button {
-					color: #888;
-				}
-
-				.delete-prompt-button:hover {
-					color: #ff7675;
-					background-color: #4a3a3a;
 				}
 			}
 		</style>
@@ -719,29 +687,6 @@
 					}
 				}
 
-				deletePrompt(promptId) {
-					if (!confirm('Are you sure you want to delete this prompt?')) return;
-
-					try {
-						localStorage.removeItem(this.promptPrefix + promptId);
-
-						if (this.activePromptId === promptId) {
-							const remainingIds = this.getPromptIds();
-							const nextId = remainingIds[0] || null;
-							if (nextId) {
-								this.updateURLHash(nextId);
-							} else {
-								// If no prompts are left, create a new one
-								this.createNewPrompt();
-							}
-						}
-						// Re-render the list in the currently open modal
-						this.renderPromptList();
-					} catch (error) {
-						console.error(`Failed to delete prompt ${promptId}:`, error);
-					}
-				}
-
 				updateURLHash(promptId, replace = false) {
 					const newHash = `#id=${promptId}`;
 					if (replace) {
@@ -775,21 +720,7 @@
 							item.classList.add('active');
 						}
 
-						const textSpan = document.createElement('span');
-						textSpan.className = 'prompt-item-text';
-						textSpan.textContent = content.substring(0, 50) || 'Empty Prompt';
-
-						const deleteButton = document.createElement('button');
-						deleteButton.className = 'delete-prompt-button';
-						deleteButton.innerHTML = '&times;';
-						deleteButton.title = 'Delete prompt';
-						deleteButton.addEventListener('click', (e) => {
-							e.stopPropagation(); // Prevent item click from firing
-							this.deletePrompt(id);
-						});
-
-						item.appendChild(textSpan);
-						item.appendChild(deleteButton);
+						item.textContent = content.substring(0, 50) || 'Empty Prompt';
 
 						item.addEventListener('click', () => {
 							this.updateURLHash(id);
