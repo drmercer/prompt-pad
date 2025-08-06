@@ -504,16 +504,16 @@
 			</div>
 		</dialog>
 		<script>
-			import { effect, signal } from '@preact/signals';
+			import { effect, signal, computed } from '@preact/signals';
 			import {
 				allPrompts,
 				selectedPrompt,
 				selectedPromptId,
 				updatePromptText,
 				addNewPrompt,
-				updateURLHash,
 				hasBeenWelcomed,
 				markAsWelcomed,
+				showModalFromSignal,
 			} from '../signals';
 
 			// DOM elements
@@ -569,20 +569,18 @@
 					}
 					item.textContent = prompt.text.substring(0, 50) || 'Empty Prompt';
 					item.addEventListener('click', () => {
-						// Let the URL hash change drive the state update
-						updateURLHash(prompt.id);
+						// The hash signal will update the URL
+						selectedPromptId.value = prompt.id;
 						promptMenuModal.close();
 					});
 					promptList.appendChild(item);
 				});
 			});
 
-			// Effect to manage the welcome modal
-			effect(() => {
-				if (!hasBeenWelcomed.value) {
-					setTimeout(() => welcomeModal.showModal(), 500);
-				}
-			});
+			// Show welcome modal on first visit
+			const showWelcomeModal = computed(() => !hasBeenWelcomed.value);
+			showModalFromSignal(showWelcomeModal, welcomeModal);
+
 
 			// Effect to update save status display
 			effect(() => {
