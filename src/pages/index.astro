@@ -517,12 +517,16 @@
 				id="textEditor"
 				class="textarea"
 				placeholder="Start typing... Your text will be automatically saved."
-				spellcheck="true"
+				spellcheck="false"
+				autocomplete="off"
+				autocorrect="off"
+				autocapitalize="off"
 			></textarea>
 		</div>
 
 		<div id="toolbar" class="toolbar hidden">
 			<div id="saveStatus" class="save-status">Ready</div>
+			<button id="insertCodeButton" class="copy-button" aria-label="insert inline code">&lt;/&gt;</button>
 			<button id="copyButton" class="copy-button">Copy</button>
 		</div>
 
@@ -562,6 +566,7 @@
 			const saveStatusEl = document.getElementById('saveStatus')!;
 			const copyButton = document.getElementById('copyButton')! as HTMLButtonElement;
 			const homeButton = document.getElementById('homeButton')! as HTMLButtonElement;
+			const insertCodeButton = document.getElementById('insertCodeButton')! as HTMLButtonElement;
 
 			// Landing Page
 			const promptListContainer = document.getElementById('promptListContainer')!;
@@ -684,6 +689,34 @@
 				selectedPromptId.value = undefined;
 			});
 
+			insertCodeButton.addEventListener('click', () => {
+				const { selectionStart, selectionEnd, value } = textarea;
+				const selectedText = value.substring(selectionStart, selectionEnd);
+
+				let newText;
+				let newSelectionStart;
+				let newSelectionEnd;
+
+				if (selectedText && !selectedText.includes('\n')) {
+					newText = `${value.substring(0, selectionStart)}\`${selectedText}\`${value.substring(
+						selectionEnd
+					)}`;
+					newSelectionStart = selectionStart + 1;
+					newSelectionEnd = selectionEnd + 1;
+				} else {
+					newText = `${value.substring(0, selectionStart)}\`${value.substring(selectionEnd)}`;
+					newSelectionStart = selectionStart + 1;
+					newSelectionEnd = selectionStart + 1;
+				}
+
+				textarea.value = newText;
+				textarea.selectionStart = newSelectionStart;
+				textarea.selectionEnd = newSelectionEnd;
+				textarea.focus();
+				// Manually trigger input event to notify signals of the change
+				textarea.dispatchEvent(new Event('input', { bubbles: true }));
+			});
+
 			copyButton.addEventListener('click', async () => {
 				try {
 					const content = textarea.value;
@@ -716,14 +749,6 @@
 			});
 
 			// --- Mobile/UX Enhancements ---
-			// Handle focus for better mobile experience
-			if ('ontouchstart' in window) {
-				textarea.addEventListener('focus', function () {
-					setTimeout(() => {
-						this.scrollIntoView({ behavior: 'smooth', block: 'center' });
-					}, 300);
-				});
-			}
 
 			// Visual Viewport API for sticky toolbar
 			if ('visualViewport' in window) {
