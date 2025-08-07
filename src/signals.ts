@@ -325,26 +325,4 @@ export function markAsWelcomed() {
 
 
 // --- App Initialization ---
-function initializeApp() {
-	if (typeof window === "undefined") return;
-
-	// Effect to ensure a prompt is always selected
-	effect(() => {
-		const currentIds = promptIds.value;
-		const selectedId = selectedPromptId.value;
-
-		// If there's no selected ID or the selected ID is invalid, select the first available prompt.
-		if (!selectedId || !currentIds.includes(selectedId)) {
-			if (currentIds.length > 0) {
-				// Use history.replaceState to not create a new history entry
-				selectedPromptId.value = currentIds[0];
-			} else {
-				// If no prompts exist at all, create a new one.
-				// This will also trigger the selectedPromptId to be set.
-				addNewPrompt();
-			}
-		}
-	});
-}
-
-initializeApp();
+// No-op; app is initialized from the Astro component.
