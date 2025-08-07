@@ -517,21 +517,21 @@
 			} from '../signals';
 
 			// DOM elements
-			const textarea = document.getElementById('textEditor');
-			const saveStatusEl = document.getElementById('saveStatus');
-			const copyButton = document.getElementById('copyButton');
-			const copyModal = document.getElementById('copyModal');
-			const welcomeModal = document.getElementById('welcomeModal');
-			const promptMenuModal = document.getElementById('promptMenuModal');
-			const closeModalButton = document.getElementById('closeModal');
-			const closeWelcomeButton = document.getElementById('closeWelcome');
-			const closePromptMenu = document.getElementById('closePromptMenu');
-			const promptMenuButton = document.getElementById('promptMenuButton');
-			const promptList = document.getElementById('promptList');
-			const newPromptButton = document.getElementById('newPromptButton');
+			const textarea = document.getElementById('textEditor') as HTMLTextAreaElement | null;
+			const saveStatusEl = document.getElementById('saveStatus') as HTMLElement | null;
+			const copyButton = document.getElementById('copyButton') as HTMLButtonElement | null;
+			const copyModal = document.getElementById('copyModal') as HTMLDialogElement | null;
+			const welcomeModal = document.getElementById('welcomeModal') as HTMLDialogElement | null;
+			const promptMenuModal = document.getElementById('promptMenuModal') as HTMLDialogElement | null;
+			const closeModalButton = document.getElementById('closeModal') as HTMLButtonElement | null;
+			const closeWelcomeButton = document.getElementById('closeWelcome') as HTMLButtonElement | null;
+			const closePromptMenu = document.getElementById('closePromptMenu') as HTMLButtonElement | null;
+			const promptMenuButton = document.getElementById('promptMenuButton') as HTMLButtonElement | null;
+			const promptList = document.getElementById('promptList') as HTMLElement | null;
+			const newPromptButton = document.getElementById('newPromptButton') as HTMLButtonElement | null;
 
 			// State for auto-saving
-			let saveTimeout = null;
+			let saveTimeout: number | null = null;
 			const saveDelay = 1000;
 			const saveStatusSignal = signal('Ready');
 
@@ -540,6 +540,7 @@
 			// Effect to update the text editor when the selected prompt changes
 			effect(() => {
 				const prompt = selectedPrompt.value;
+				if (!textarea) return;
 				const currentText = textarea.value;
 				// Only update if the text is different to avoid losing cursor position
 				if (prompt && prompt.text !== currentText) {
@@ -552,6 +553,7 @@
 
 			// Effect to render the list of prompts in the menu
 			effect(() => {
+				if (!promptList) return;
 				const prompts = allPrompts.value;
 				const currentId = selectedPromptId.value;
 				promptList.innerHTML = ''; // Clear existing list
@@ -571,7 +573,7 @@
 					item.addEventListener('click', () => {
 						// The hash signal will update the URL
 						selectedPromptId.value = prompt.id;
-						promptMenuModal.close();
+						promptMenuModal?.close();
 					});
 					promptList.appendChild(item);
 				});
@@ -584,6 +586,7 @@
 
 			// Effect to update save status display
 			effect(() => {
+				if (!saveStatusEl) return;
 				saveStatusEl.textContent = saveStatusSignal.value;
 				saveStatusEl.className = 'save-status visible';
 				switch (saveStatusSignal.value) {
@@ -610,62 +613,81 @@
 			// --- Event Listeners ---
 
 			// Auto-save on input
-			textarea.addEventListener('input', () => {
-				if (saveTimeout) clearTimeout(saveTimeout);
-				saveStatusSignal.value = 'Saving...';
-				saveTimeout = setTimeout(() => {
-					const id = selectedPromptId.peek();
-					if (id) {
-						updatePromptText(id, textarea.value);
-						saveStatusSignal.value = 'Saved';
-					}
-				}, saveDelay);
-			});
+			if (textarea) {
+				textarea.addEventListener('input', () => {
+					if (saveTimeout) clearTimeout(saveTimeout);
+					saveStatusSignal.value = 'Saving...';
+					saveTimeout = window.setTimeout(() => {
+						const id = selectedPromptId.peek();
+						if (id && textarea) {
+							updatePromptText(id, textarea.value);
+							saveStatusSignal.value = 'Saved';
+						}
+					}, saveDelay);
+				});
+			}
 
 			// UI Buttons
-			promptMenuButton.addEventListener('click', () => promptMenuModal.showModal());
-			newPromptButton.addEventListener('click', () => {
-				addNewPrompt();
-				promptMenuModal.close();
-			});
+			if (promptMenuButton) {
+				promptMenuButton.addEventListener('click', () => promptMenuModal?.showModal());
+			}
+			if (newPromptButton) {
+				newPromptButton.addEventListener('click', () => {
+					addNewPrompt();
+					promptMenuModal?.close();
+				});
+			}
 
-			copyButton.addEventListener('click', async () => {
-				try {
-					const content = textarea.value;
-					if (!content.trim()) return;
-					await navigator.clipboard.writeText(content);
-					copyModal.showModal();
-				} catch (error) {
-					console.error('Failed to copy to clipboard:', error);
-					textarea.select(); // Fallback for older browsers
-					document.execCommand('copy');
-					copyModal.showModal();
-				}
-			});
-
-			// Modal close buttons
-			closeModalButton.addEventListener('click', () => copyModal.close());
-			closePromptMenu.addEventListener('click', () => promptMenuModal.close());
-			closeWelcomeButton.addEventListener('click', () => {
-				welcomeModal.close();
-				markAsWelcomed();
-			});
-
-			// Close modals on backdrop click
-			[copyModal, promptMenuModal, welcomeModal].forEach(modal => {
-				modal.addEventListener('click', (e) => {
-					if (e.target === modal) {
-						modal.close();
-						if (modal === welcomeModal) {
-							markAsWelcomed();
+			if (copyButton) {
+				copyButton.addEventListener('click', async () => {
+					if (!textarea) return;
+					try {
+						const content = textarea.value;
+						if (!content.trim()) return;
+						await navigator.clipboard.writeText(content);
+						copyModal?.showModal();
+					} catch (error) {
+						console.error('Failed to copy to clipboard:', error);
+						if (textarea) {
+							textarea.select(); // Fallback for older browsers
+							document.execCommand('copy');
+							copyModal?.showModal();
 						}
 					}
 				});
+			}
+
+			// Modal close buttons
+			if (closeModalButton) {
+				closeModalButton.addEventListener('click', () => copyModal?.close());
+			}
+			if (closePromptMenu) {
+				closePromptMenu.addEventListener('click', () => promptMenuModal?.close());
+			}
+			if (closeWelcomeButton) {
+				closeWelcomeButton.addEventListener('click', () => {
+					welcomeModal?.close();
+					markAsWelcomed();
+				});
+			}
+
+			// Close modals on backdrop click
+			[copyModal, promptMenuModal, welcomeModal].forEach(modal => {
+				if (modal) {
+					modal.addEventListener('click', (e) => {
+						if (e.target === modal) {
+							modal.close();
+							if (modal === welcomeModal) {
+								markAsWelcomed();
+							}
+						}
+					});
+				}
 			});
 
 			// --- Mobile/UX Enhancements ---
 			// Handle focus for better mobile experience
-			if ('ontouchstart' in window) {
+			if ('ontouchstart' in window && textarea) {
 				textarea.addEventListener('focus', function () {
 					setTimeout(() => {
 						this.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -675,19 +697,20 @@
 
 			// Visual Viewport API for sticky toolbar
 			if ('visualViewport' in window) {
-				const toolbar = document.querySelector('.toolbar');
-				const container = document.querySelector('.container');
+				const toolbar = document.querySelector('.toolbar') as HTMLElement | null;
+				const container = document.querySelector('.container') as HTMLElement | null;
 
 				const updateToolbarPosition = () => {
 					const viewport = window.visualViewport;
+					if (!viewport || !toolbar || !container || !textarea) return;
 					const keyboardHeight = window.innerHeight - viewport.height - viewport.offsetTop;
 					toolbar.style.bottom = `${keyboardHeight}px`;
 					container.style.paddingBottom = `calc(80px + ${keyboardHeight}px)`;
 					textarea.style.scrollPaddingBottom = `calc(80px + ${keyboardHeight}px)`;
 				};
 
-				window.visualViewport.addEventListener('resize', updateToolbarPosition);
-				window.visualViewport.addEventListener('scroll', updateToolbarPosition);
+				window.visualViewport?.addEventListener('resize', updateToolbarPosition);
+				window.visualViewport?.addEventListener('scroll', updateToolbarPosition);
 				updateToolbarPosition(); // Initial call
 			}
 		</script>
