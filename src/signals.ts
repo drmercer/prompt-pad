@@ -51,20 +51,42 @@ export function createHashParamSignal(paramName: string, replaceHistory = false)
 }
 
 /**
- * Creates a signal that is synced with a localStorage item.
+ * Creates a signal that is synced with a localStorage item, with support for custom types.
  * @param key The localStorage key.
  * @param defaultValue The default value to use if the key is not in localStorage.
+ * @param options Optional functions to parse and serialize the value. Defaults to JSON.
  * @returns A signal representing the localStorage item's value.
  */
-export function createLocalStorageSignal(key: string, defaultValue = ""): Signal<string> {
-	const storedValue = typeof window !== "undefined" ? localStorage.getItem(key) : null;
-	const sig = signal(storedValue ?? defaultValue);
+export function createLocalStorageSignal<T>(
+	key: string,
+	defaultValue: T,
+	options?: {
+		parse: (stored: string, key: string) => T;
+		serialize: (value: T, key: string) => string;
+	}
+): Signal<T> {
+	const serialize = options?.serialize ?? ((v) => JSON.stringify(v));
+	const parse = options?.parse ?? ((v) => JSON.parse(v));
+
+	const getStoredValue = (): T => {
+		if (typeof window === 'undefined') return defaultValue;
+		const stored = localStorage.getItem(key);
+		if (stored === null) return defaultValue;
+		try {
+			return parse(stored, key);
+		} catch (e) {
+			console.error(`Failed to parse localStorage key "${key}". Returning default value.`, e);
+			return defaultValue;
+		}
+	};
+
+	const sig = signal(getStoredValue());
 
 	effect(() => {
 		if (typeof window !== "undefined") {
-			const currentValue = localStorage.getItem(key);
-			if (sig.value !== currentValue) {
-				localStorage.setItem(key, sig.value);
+			const serializedValue = serialize(sig.value, key);
+			if (localStorage.getItem(key) !== serializedValue) {
+				localStorage.setItem(key, serializedValue);
 			}
 		}
 	});
@@ -72,8 +94,11 @@ export function createLocalStorageSignal(key: string, defaultValue = ""): Signal
 	// Listen for changes from other tabs
 	if (typeof window !== "undefined") {
 		window.addEventListener('storage', (e) => {
-			if (e.key === key && e.newValue !== sig.peek()) {
-				sig.value = e.newValue ?? defaultValue;
+			if (e.key === key) {
+				const newValue = e.newValue === null ? defaultValue : parse(e.newValue, key);
+				if (sig.peek() !== newValue) {
+					sig.value = newValue;
+				}
 			}
 		});
 	}
@@ -155,49 +180,55 @@ export interface Prompt {
 
 // --- Constants ---
 const PROMPT_PREFIX = "prompt/";
-const LEGACY_STORAGE_KEY = "text-editor-content";
 const WELCOME_KEY = 'prompt-pad-welcomed';
 
 
 // --- Private Helper Functions ---
 
-function getPromptTextFromStorage(id: string): string {
-	if (typeof window === "undefined") return "";
+/**
+ * Parses a stored string into a Prompt object.
+ * Handles both legacy plain text and new JSON formats.
+ * @param stored The string from localStorage.
+ * @param key The localStorage key, used to derive the ID.
+ * @returns A Prompt object.
+ */
+function parsePrompt(stored: string, key: string): Prompt {
+	const id = key.substring(PROMPT_PREFIX.length);
+	if (!stored) {
+		return { id, text: '' };
+	}
 	try {
-		return localStorage.getItem(PROMPT_PREFIX + id) || "";
-	} catch (error) {
-		console.warn(`Failed to get prompt text for ${id} from localStorage:`, error);
-		return "";
+		// New format: stored as JSON object (without id)
+		const parsed = JSON.parse(stored);
+		return { ...parsed, id };
+	} catch (e) {
+		// Legacy format: stored as raw text
+		return { id, text: stored };
 	}
 }
 
-function migrateLegacyContent() {
-	if (typeof window === "undefined") return;
-	try {
-		const legacyContent = localStorage.getItem(LEGACY_STORAGE_KEY);
-		if (legacyContent) {
-			// Temporarily get keys to check if migration is needed
-			const keys = [];
-			for (let i = 0; i < localStorage.length; i++) {
-				const key = localStorage.key(i);
-				if (key?.startsWith(PROMPT_PREFIX)) {
-					keys.push(key);
-				}
-			}
-			if (keys.length === 0) {
-				const newId = crypto.randomUUID();
-				localStorage.setItem(PROMPT_PREFIX + newId, legacyContent);
-				console.log("Migrated legacy content to new prompt format.");
-			}
-			localStorage.removeItem(LEGACY_STORAGE_KEY);
-		}
-	} catch (error) {
-		console.warn("Failed to migrate legacy content:", error);
-	}
+/**
+ * Serializes a Prompt object for storage.
+ * The `id` is not stored in the value; it's derived from the key.
+ * @param prompt The prompt to serialize.
+ * @returns A JSON string representation of the prompt.
+ */
+function serializePrompt(prompt: Prompt): string {
+	const { id, ...rest } = prompt;
+	return JSON.stringify(rest);
 }
 
-// Perform migration before initializing signals
-migrateLegacyContent();
+function getPromptFromStorage(id: string): Prompt {
+	if (typeof window === "undefined") return { id, text: "" };
+	try {
+		const key = PROMPT_PREFIX + id;
+		const storedValue = localStorage.getItem(key) || "";
+		return parsePrompt(storedValue, key);
+	} catch (error) {
+		console.warn(`Failed to get prompt for ${id} from localStorage:`, error);
+		return { id, text: "" };
+	}
+}
 
 
 // --- Signals and State Management ---
@@ -237,8 +268,8 @@ export const selectedPrompt = computed<Prompt | undefined>(() => {
 export function getPrompt(id: string): Signal<Prompt> {
 	let promptSignal = promptSignals.get(id);
 	if (!promptSignal) {
-		const text = getPromptTextFromStorage(id);
-		promptSignal = signal({ id, text });
+		const prompt = getPromptFromStorage(id);
+		promptSignal = signal(prompt);
 		promptSignals.set(id, promptSignal);
 	}
 	return promptSignal;
@@ -251,13 +282,13 @@ export function getPrompt(id: string): Signal<Prompt> {
  */
 export function updatePromptText(id: string, text: string) {
 	const promptSignal = getPrompt(id);
-	// Update the signal's value
-	promptSignal.value = { ...promptSignal.value, text };
+	const newPromptData = { ...promptSignal.value, text };
+	promptSignal.value = newPromptData;
 
 	// Persist to localStorage
 	try {
 		if (typeof window !== "undefined") {
-			localStorage.setItem(PROMPT_PREFIX + id, text);
+			localStorage.setItem(PROMPT_PREFIX + id, serializePrompt(newPromptData));
 		}
 	} catch (error) {
 		console.error(`Failed to save prompt ${id} to localStorage:`, error);
@@ -285,11 +316,11 @@ export function addNewPrompt() {
 }
 
 // --- Welcome Modal Logic ---
-const welcomedSignal = createLocalStorageSignal(WELCOME_KEY, "false");
-export const hasBeenWelcomed: ReadOnlySignal<boolean> = computed(() => welcomedSignal.value === 'true');
+const welcomedSignal = createLocalStorageSignal(WELCOME_KEY, false);
+export const hasBeenWelcomed: ReadOnlySignal<boolean> = computed(() => welcomedSignal.value);
 
 export function markAsWelcomed() {
-	welcomedSignal.value = 'true';
+	welcomedSignal.value = true;
 }
 
 
