@@ -23,6 +23,32 @@
 				line-height: 1.6;
 			}
 
+			.hidden {
+				display: none !important;
+			}
+
+			.landing-page {
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				padding: 20px;
+				text-align: center;
+			}
+
+			.landing-content {
+				max-width: 600px;
+				width: 100%;
+			}
+
+			.landing-title {
+				font-size: 24px;
+				font-weight: 600;
+				color: #2c3e50;
+				margin-bottom: 16px;
+			}
+
 			.container {
 				min-height: 100vh;
 				display: flex;
@@ -255,7 +281,7 @@
 
 			.prompt-list {
 				margin-bottom: 20px;
-				max-height: 300px;
+				max-height: 40vh;
 				overflow-y: auto;
 				border: 1px solid #e1e8ed;
 				border-radius: 8px;
@@ -445,16 +471,48 @@
 					background-color: #3a4a5a;
 					border-color: #5fa8e3;
 				}
+
+				.landing-page {
+					background-color: #121212;
+					color: #e0e0e0;
+				}
+				.landing-title {
+					color: #e0e0e0;
+				}
 			}
 		</style>
 	</head>
 	<body>
-		<div class="container">
+		<div id="landingPage" class="landing-page">
+			<div class="landing-content">
+				<!-- This view is shown when there are no prompts -->
+				<div id="welcomeView" class="hidden">
+					<h1 class="landing-title">Welcome to Prompt Pad</h1>
+					<div class="welcome-text">
+						<p>Prompt Pad is a tool for drafting prompts for coding AIs like Jules, Bolt, or Claude Code. It's just a simple text editor with autosave. Its purpose is to make it easier to work on a lengthier prompt without worrying about losing your progress if you get interrupted and switch away for a bit.</p>
+					</div>
+					<button id="createFirstPromptButton" class="service-button">Create your first prompt</button>
+				</div>
+
+				<!-- This view is shown when prompts exist -->
+				<div id="promptListView" class="hidden">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+						<h1 class="landing-title" style="margin: 0;">Your Prompts</h1>
+						<button id="newPromptButton" class="service-button">New Prompt</button>
+					</div>
+					<div id="promptListContainer" class="prompt-list">
+						<!-- Prompt items will be dynamically inserted here -->
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="editorContainer" class="container hidden">
 			<div class="header">
 				<h1 class="title">Prompt Pad</h1>
-				<button id="promptMenuButton" class="menu-button">Prompts</button>
+				<button id="homeButton" class="menu-button">All Prompts</button>
 			</div>
-			
+
 			<textarea
 				id="textEditor"
 				class="textarea"
@@ -463,7 +521,7 @@
 			></textarea>
 		</div>
 
-		<div class="toolbar">
+		<div id="toolbar" class="toolbar hidden">
 			<div id="saveStatus" class="save-status">Ready</div>
 			<button id="copyButton" class="copy-button">Copy</button>
 		</div>
@@ -481,106 +539,107 @@
 			</div>
 		</dialog>
 
-		<dialog id="welcomeModal" class="modal">
-			<div class="modal-content">
-				<h2 class="modal-title">Welcome to Prompt Pad</h2>
-				<div class="welcome-text">
-					<p>Prompt Pad is a tool for drafting prompts for coding AIs like Jules, Bolt, or Claude Code. It's just a simple text editor with autosave. Its purpose is to make it easier to work on a lengthier prompt without worrying about losing your progress if you get interrupted and switch away for a bit.</p>
-				</div>
-				<button id="closeWelcome" class="close-button">Start writing</button>
-			</div>
-		</dialog>
-
-		<dialog id="promptMenuModal" class="modal">
-			<div class="modal-content">
-				<h2 class="modal-title">Prompts</h2>
-				<div id="promptList" class="prompt-list">
-					<!-- Prompt items will be dynamically inserted here -->
-				</div>
-				<div class="modal-buttons">
-					<button id="newPromptButton" class="service-button">New Prompt</button>
-					<button id="closePromptMenu" class="close-button">Close</button>
-				</div>
-			</div>
-		</dialog>
 		<script>
-			import { effect, signal, computed } from '@preact/signals';
+			import { effect, signal } from '@preact/signals';
 			import {
 				allPrompts,
 				selectedPrompt,
 				selectedPromptId,
 				updatePromptText,
 				addNewPrompt,
-				hasBeenWelcomed,
-				markAsWelcomed,
-				showModalFromSignal,
 			} from '../signals';
 
-			// DOM elements
+			// --- DOM elements ---
+			// Views
+			const landingPage = document.getElementById('landingPage')!;
+			const editorContainer = document.getElementById('editorContainer')!;
+			const toolbar = document.getElementById('toolbar')!;
+			const welcomeView = document.getElementById('welcomeView')!;
+			const promptListView = document.getElementById('promptListView')!;
+
+			// Editor
 			const textarea = document.getElementById('textEditor')! as HTMLTextAreaElement;
 			const saveStatusEl = document.getElementById('saveStatus')!;
 			const copyButton = document.getElementById('copyButton')! as HTMLButtonElement;
-			const copyModal = document.getElementById('copyModal')! as HTMLDialogElement;
-			const welcomeModal = document.getElementById('welcomeModal')! as HTMLDialogElement;
-			const promptMenuModal = document.getElementById('promptMenuModal')! as HTMLDialogElement;
-			const closeModalButton = document.getElementById('closeModal')! as HTMLButtonElement;
-			const closeWelcomeButton = document.getElementById('closeWelcome')! as HTMLButtonElement;
-			const closePromptMenu = document.getElementById('closePromptMenu')! as HTMLButtonElement;
-			const promptMenuButton = document.getElementById('promptMenuButton')! as HTMLButtonElement;
-			const promptList = document.getElementById('promptList')!;
-			const newPromptButton = document.getElementById('newPromptButton')! as HTMLButtonElement;
+			const homeButton = document.getElementById('homeButton')! as HTMLButtonElement;
 
-			// State for auto-saving
+			// Landing Page
+			const promptListContainer = document.getElementById('promptListContainer')!;
+			const createFirstPromptButton = document.getElementById('createFirstPromptButton')!;
+			const newPromptButton = document.getElementById('newPromptButton')!;
+
+			// Modals
+			const copyModal = document.getElementById('copyModal')! as HTMLDialogElement;
+			const closeModalButton = document.getElementById('closeModal')! as HTMLButtonElement;
+
+			// --- State ---
 			let saveTimeout: number | null = null;
 			const saveDelay = 1000;
 			const saveStatusSignal = signal('Ready');
 
 			// --- Effects to sync state with DOM ---
 
+			// Main view switching logic
+			effect(() => {
+				const id = selectedPromptId.value;
+				if (id) {
+					// Show editor
+					landingPage.classList.add('hidden');
+					editorContainer.classList.remove('hidden');
+					toolbar.classList.remove('hidden');
+				} else {
+					// Show landing page
+					landingPage.classList.remove('hidden');
+					editorContainer.classList.add('hidden');
+					toolbar.classList.add('hidden');
+				}
+			});
+
+			// Landing page content switching logic
+			effect(() => {
+				const prompts = allPrompts.value;
+				if (prompts.length > 0) {
+					welcomeView.classList.add('hidden');
+					promptListView.classList.remove('hidden');
+				} else {
+					welcomeView.classList.remove('hidden');
+					promptListView.classList.add('hidden');
+				}
+			});
+
 			// Effect to update the text editor when the selected prompt changes
 			effect(() => {
 				const prompt = selectedPrompt.value;
 				const currentText = textarea.value;
-				// Only update if the text is different to avoid losing cursor position
+
 				if (prompt && prompt.text !== currentText) {
 					textarea.value = prompt.text;
 				} else if (!prompt) {
 					textarea.value = '';
-					textarea.placeholder = 'Create a new prompt to get started.';
+					textarea.placeholder = 'Select a prompt to start editing.';
 				}
 			});
 
-			// Effect to render the list of prompts in the menu
+			// Effect to render the list of prompts on the landing page
 			effect(() => {
 				const prompts = allPrompts.value;
-				const currentId = selectedPromptId.value;
-				promptList.innerHTML = ''; // Clear existing list
+				promptListContainer.innerHTML = ''; // Clear existing list
 
 				if (prompts.length === 0) {
-					promptList.innerHTML = '<p>No prompts yet. Create one!</p>';
+					// This case is handled by showing the welcomeView
 					return;
 				}
 
-				prompts.forEach(prompt => {
+				prompts.forEach((prompt) => {
 					const item = document.createElement('div');
 					item.className = 'prompt-item';
-					if (prompt.id === currentId) {
-						item.classList.add('active');
-					}
-					item.textContent = prompt.text.substring(0, 50) || 'Empty Prompt';
+					item.textContent = prompt.text.substring(0, 80) || 'Empty Prompt';
 					item.addEventListener('click', () => {
-						// The hash signal will update the URL
 						selectedPromptId.value = prompt.id;
-						promptMenuModal.close();
 					});
-					promptList.appendChild(item);
+					promptListContainer.appendChild(item);
 				});
 			});
-
-			// Show welcome modal on first visit
-			const showWelcomeModal = computed(() => !hasBeenWelcomed.value);
-			showModalFromSignal(showWelcomeModal, welcomeModal);
-
 
 			// Effect to update save status display
 			effect(() => {
@@ -597,7 +656,6 @@
 						saveStatusEl.classList.add('error');
 						break;
 				}
-				// Hide the status after a delay if it's 'Ready' or 'Saved'
 				if (saveStatusSignal.value === 'Ready' || saveStatusSignal.value === 'Saved') {
 					setTimeout(() => {
 						if (saveStatusSignal.peek() !== 'Saving...') {
@@ -609,7 +667,7 @@
 
 			// --- Event Listeners ---
 
-			// Auto-save on input
+			// Editor
 			textarea.addEventListener('input', () => {
 				if (saveTimeout) clearTimeout(saveTimeout);
 				saveStatusSignal.value = 'Saving...';
@@ -622,11 +680,8 @@
 				}, saveDelay);
 			});
 
-			// UI Buttons
-			promptMenuButton.addEventListener('click', () => promptMenuModal.showModal());
-			newPromptButton.addEventListener('click', () => {
-				addNewPrompt();
-				promptMenuModal.close();
+			homeButton.addEventListener('click', () => {
+				selectedPromptId.value = undefined;
 			});
 
 			copyButton.addEventListener('click', async () => {
@@ -643,24 +698,21 @@
 				}
 			});
 
-			// Modal close buttons
-			closeModalButton.addEventListener('click', () => copyModal.close());
-			closePromptMenu.addEventListener('click', () => promptMenuModal.close());
-			closeWelcomeButton.addEventListener('click', () => {
-				welcomeModal.close();
-				markAsWelcomed();
+			// Landing Page
+			createFirstPromptButton.addEventListener('click', () => {
+				addNewPrompt();
 			});
 
-			// Close modals on backdrop click
-			[copyModal, promptMenuModal, welcomeModal].forEach(modal => {
-				modal.addEventListener('click', (e) => {
-					if (e.target === modal) {
-						modal.close();
-						if (modal === welcomeModal) {
-							markAsWelcomed();
-						}
-					}
-				});
+			newPromptButton.addEventListener('click', () => {
+				addNewPrompt();
+			});
+
+			// Modal
+			closeModalButton.addEventListener('click', () => copyModal.close());
+			copyModal.addEventListener('click', (e) => {
+				if (e.target === copyModal) {
+					copyModal.close();
+				}
 			});
 
 			// --- Mobile/UX Enhancements ---
@@ -675,15 +727,12 @@
 
 			// Visual Viewport API for sticky toolbar
 			if ('visualViewport' in window) {
-				const toolbar = document.querySelector('.toolbar') as HTMLElement;
-				const container = document.querySelector('.container') as HTMLElement;
-
 				const updateToolbarPosition = () => {
 					const viewport = window.visualViewport;
 					if (!viewport) return;
 					const keyboardHeight = window.innerHeight - viewport.height - viewport.offsetTop;
 					toolbar.style.bottom = `${keyboardHeight}px`;
-					container.style.paddingBottom = `calc(80px + ${keyboardHeight}px)`;
+					editorContainer.style.paddingBottom = `calc(80px + ${keyboardHeight}px)`;
 					textarea.style.scrollPaddingBottom = `calc(80px + ${keyboardHeight}px)`;
 				};
 
