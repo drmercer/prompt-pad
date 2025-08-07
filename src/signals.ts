@@ -1,5 +1,26 @@
 import { signal, computed, Signal, effect } from "@preact/signals";
 
+// --- Storage Utility ---
+
+const getStorage = (): Storage => {
+	if (typeof window !== 'undefined' && window.location.hostname.endsWith('.netlify.app')) {
+		return sessionStorage;
+	}
+	// Fallback to a dummy storage object during SSR
+	if (typeof window === 'undefined') {
+		return {
+			getItem: () => null,
+			setItem: () => {},
+			removeItem: () => {},
+			clear: () => {},
+			key: () => null,
+			length: 0,
+		};
+	}
+	return localStorage;
+};
+
+
 // --- New Signal Utilities ---
 
 /** A Signal that can only be read from. */
@@ -51,13 +72,13 @@ export function createHashParamSignal(paramName: string, replaceHistory = false)
 }
 
 /**
- * Creates a signal that is synced with a localStorage item, with support for custom types.
- * @param key The localStorage key.
- * @param defaultValue The default value to use if the key is not in localStorage.
+ * Creates a signal that is synced with a storage item (localStorage or sessionStorage), with support for custom types.
+ * @param key The storage key.
+ * @param defaultValue The default value to use if the key is not in storage.
  * @param options Optional functions to parse and serialize the value. Defaults to JSON.
- * @returns A signal representing the localStorage item's value.
+ * @returns A signal representing the storage item's value.
  */
-export function createLocalStorageSignal<T>(
+export function createStorageSignal<T>(
 	key: string,
 	defaultValue: T,
 	options?: {
@@ -70,12 +91,13 @@ export function createLocalStorageSignal<T>(
 
 	const getStoredValue = (): T => {
 		if (typeof window === 'undefined') return defaultValue;
-		const stored = localStorage.getItem(key);
+		const storage = getStorage();
+		const stored = storage.getItem(key);
 		if (stored === null) return defaultValue;
 		try {
 			return parse(stored, key);
 		} catch (e) {
-			console.error(`Failed to parse localStorage key "${key}". Returning default value.`, e);
+			console.error(`Failed to parse storage key "${key}". Returning default value.`, e);
 			return defaultValue;
 		}
 	};
@@ -84,9 +106,10 @@ export function createLocalStorageSignal<T>(
 
 	effect(() => {
 		if (typeof window !== "undefined") {
+			const storage = getStorage();
 			const serializedValue = serialize(sig.value, key);
-			if (localStorage.getItem(key) !== serializedValue) {
-				localStorage.setItem(key, serializedValue);
+			if (storage.getItem(key) !== serializedValue) {
+				storage.setItem(key, serializedValue);
 			}
 		}
 	});
@@ -107,17 +130,18 @@ export function createLocalStorageSignal<T>(
 }
 
 /**
- * Creates a signal that tracks localStorage keys matching a regex.
+ * Creates a signal that tracks storage keys matching a regex.
  * Uses the first capturing group from the regex as the signal's value.
  * @param regex The regular expression to match keys against. Must have one capturing group.
  * @returns A signal containing an array of the captured group values.
  */
-export function createLocalStorageKeysSignal(regex: RegExp): Signal<string[]> {
+export function createStorageKeysSignal(regex: RegExp): Signal<string[]> {
 	const getKeys = () => {
 		if (typeof window === "undefined") return [];
+		const storage = getStorage();
 		const keys: string[] = [];
-		for (let i = 0; i < localStorage.length; i++) {
-			const key = localStorage.key(i);
+		for (let i = 0; i < storage.length; i++) {
+			const key = storage.key(i);
 			const match = key?.match(regex);
 			if (match && match[1]) {
 				keys.push(match[1]);
@@ -141,13 +165,14 @@ export function createLocalStorageKeysSignal(regex: RegExp): Signal<string[]> {
 
 	// Override localStorage methods to dispatch event
 	if (typeof window !== "undefined") {
-		const originalSetItem = localStorage.setItem;
-		localStorage.setItem = function(key, value) {
+		const storage = getStorage();
+		const originalSetItem = storage.setItem;
+		storage.setItem = function(key, value) {
 			originalSetItem.apply(this, [key, value]);
 			window.dispatchEvent(new Event('local-storage-changed'));
 		};
-		const originalRemoveItem = localStorage.removeItem;
-		localStorage.removeItem = function(key) {
+		const originalRemoveItem = storage.removeItem;
+		storage.removeItem = function(key) {
 			originalRemoveItem.apply(this, [key]);
 			window.dispatchEvent(new Event('local-storage-changed'));
 		};
@@ -221,11 +246,12 @@ function serializePrompt(prompt: Prompt): string {
 function getPromptFromStorage(id: string): Prompt {
 	if (typeof window === "undefined") return { id, text: "" };
 	try {
+		const storage = getStorage();
 		const key = PROMPT_PREFIX + id;
-		const storedValue = localStorage.getItem(key) || "";
+		const storedValue = storage.getItem(key) || "";
 		return parsePrompt(storedValue, key);
 	} catch (error) {
-		console.warn(`Failed to get prompt for ${id} from localStorage:`, error);
+		console.warn(`Failed to get prompt for ${id} from storage:`, error);
 		return { id, text: "" };
 	}
 }
@@ -236,8 +262,8 @@ function getPromptFromStorage(id: string): Prompt {
 /** A map to hold individual prompt signals, keyed by ID. */
 const promptSignals = new Map<string, Signal<Prompt>>();
 
-/** Signal: The list of all prompt IDs, derived from localStorage. */
-export const promptIds = createLocalStorageKeysSignal(/^prompt\/(.*)/);
+/** Signal: The list of all prompt IDs, derived from storage. */
+export const promptIds = createStorageKeysSignal(/^prompt\/(.*)/);
 
 /** Signal: The ID of the currently selected prompt, derived from the URL hash. */
 export const selectedPromptId = createHashParamSignal('id', true);
@@ -285,13 +311,14 @@ export function updatePromptText(id: string, text: string) {
 	const newPromptData = { ...promptSignal.value, text };
 	promptSignal.value = newPromptData;
 
-	// Persist to localStorage
+	// Persist to storage
 	try {
 		if (typeof window !== "undefined") {
-			localStorage.setItem(PROMPT_PREFIX + id, serializePrompt(newPromptData));
+			const storage = getStorage();
+			storage.setItem(PROMPT_PREFIX + id, serializePrompt(newPromptData));
 		}
 	} catch (error) {
-		console.error(`Failed to save prompt ${id} to localStorage:`, error);
+		console.error(`Failed to save prompt ${id} to storage:`, error);
 	}
 }
 
@@ -302,8 +329,9 @@ export function addNewPrompt() {
 	const newId = crypto.randomUUID();
 	try {
 		if (typeof window !== "undefined") {
-			// This setItem will trigger the createLocalStorageKeysSignal to update promptIds
-			localStorage.setItem(PROMPT_PREFIX + newId, "");
+			const storage = getStorage();
+			// This setItem will trigger the createStorageKeysSignal to update promptIds
+			storage.setItem(PROMPT_PREFIX + newId, "");
 		}
 		// Create a signal for the new prompt
 		getPrompt(newId);
@@ -316,7 +344,7 @@ export function addNewPrompt() {
 }
 
 // --- Welcome Modal Logic ---
-const welcomedSignal = createLocalStorageSignal(WELCOME_KEY, false);
+const welcomedSignal = createStorageSignal(WELCOME_KEY, false);
 export const hasBeenWelcomed: ReadOnlySignal<boolean> = computed(() => welcomedSignal.value);
 
 export function markAsWelcomed() {
