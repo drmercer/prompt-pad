@@ -517,21 +517,21 @@
 			} from '../signals';
 
 			// DOM elements
-			const textarea = document.getElementById('textEditor');
-			const saveStatusEl = document.getElementById('saveStatus');
-			const copyButton = document.getElementById('copyButton');
-			const copyModal = document.getElementById('copyModal');
-			const welcomeModal = document.getElementById('welcomeModal');
-			const promptMenuModal = document.getElementById('promptMenuModal');
-			const closeModalButton = document.getElementById('closeModal');
-			const closeWelcomeButton = document.getElementById('closeWelcome');
-			const closePromptMenu = document.getElementById('closePromptMenu');
-			const promptMenuButton = document.getElementById('promptMenuButton');
-			const promptList = document.getElementById('promptList');
-			const newPromptButton = document.getElementById('newPromptButton');
+			const textarea = document.getElementById('textEditor')! as HTMLTextAreaElement;
+			const saveStatusEl = document.getElementById('saveStatus')!;
+			const copyButton = document.getElementById('copyButton')! as HTMLButtonElement;
+			const copyModal = document.getElementById('copyModal')! as HTMLDialogElement;
+			const welcomeModal = document.getElementById('welcomeModal')! as HTMLDialogElement;
+			const promptMenuModal = document.getElementById('promptMenuModal')! as HTMLDialogElement;
+			const closeModalButton = document.getElementById('closeModal')! as HTMLButtonElement;
+			const closeWelcomeButton = document.getElementById('closeWelcome')! as HTMLButtonElement;
+			const closePromptMenu = document.getElementById('closePromptMenu')! as HTMLButtonElement;
+			const promptMenuButton = document.getElementById('promptMenuButton')! as HTMLButtonElement;
+			const promptList = document.getElementById('promptList')!;
+			const newPromptButton = document.getElementById('newPromptButton')! as HTMLButtonElement;
 
 			// State for auto-saving
-			let saveTimeout = null;
+			let saveTimeout: number | null = null;
 			const saveDelay = 1000;
 			const saveStatusSignal = signal('Ready');
 
@@ -613,7 +613,7 @@
 			textarea.addEventListener('input', () => {
 				if (saveTimeout) clearTimeout(saveTimeout);
 				saveStatusSignal.value = 'Saving...';
-				saveTimeout = setTimeout(() => {
+				saveTimeout = window.setTimeout(() => {
 					const id = selectedPromptId.peek();
 					if (id) {
 						updatePromptText(id, textarea.value);
@@ -675,19 +675,20 @@
 
 			// Visual Viewport API for sticky toolbar
 			if ('visualViewport' in window) {
-				const toolbar = document.querySelector('.toolbar');
-				const container = document.querySelector('.container');
+				const toolbar = document.querySelector('.toolbar') as HTMLElement;
+				const container = document.querySelector('.container') as HTMLElement;
 
 				const updateToolbarPosition = () => {
 					const viewport = window.visualViewport;
+					if (!viewport) return;
 					const keyboardHeight = window.innerHeight - viewport.height - viewport.offsetTop;
 					toolbar.style.bottom = `${keyboardHeight}px`;
 					container.style.paddingBottom = `calc(80px + ${keyboardHeight}px)`;
 					textarea.style.scrollPaddingBottom = `calc(80px + ${keyboardHeight}px)`;
 				};
 
-				window.visualViewport.addEventListener('resize', updateToolbarPosition);
-				window.visualViewport.addEventListener('scroll', updateToolbarPosition);
+				window.visualViewport?.addEventListener('resize', updateToolbarPosition);
+				window.visualViewport?.addEventListener('scroll', updateToolbarPosition);
 				updateToolbarPosition(); // Initial call
 			}
 		</script>
