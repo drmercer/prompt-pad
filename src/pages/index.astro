@@ -670,9 +670,66 @@
 				}
 			});
 
+			// --- Helper Functions ---
+			function formatPastedText(text: string): string | null {
+				try {
+					// GitHub file link
+					const fileLinkMatch = text.match(
+						/https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/(.+)#L(\d+)(?:-L(\d+))?/
+					);
+					if (fileLinkMatch) {
+						const [, filePath, startLine, endLine] = fileLinkMatch;
+						if (endLine) {
+							return `lines ${startLine}-${endLine} in ${filePath}`;
+						}
+						return `line ${startLine} in ${filePath}`;
+					}
+
+					const fileLinkMatchNoLines = text.match(
+						/https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/(.+)/
+					);
+					if (fileLinkMatchNoLines) {
+						return fileLinkMatchNoLines[1];
+					}
+
+					// GitHub commit link
+					const commitLinkMatch = text.match(
+						/https:\/\/github\.com\/[^\/]+\/[^\/]+\/commit\/([a-f0-9]{40})/
+					);
+					if (commitLinkMatch) {
+						return `commit ${commitLinkMatch[1].substring(0, 8)}`;
+					}
+
+					// Commit hash
+					if (/^[a-f0-9]{40}$/.test(text)) {
+						return text.substring(0, 8);
+					}
+				} catch (e) {
+					console.error('Error formatting pasted text:', e);
+					return null;
+				}
+
+				return null;
+			}
+
 			// --- Event Listeners ---
 
 			// Editor
+			textarea.addEventListener('paste', (event) => {
+				const pastedText = event.clipboardData?.getData('text');
+				if (!pastedText) return;
+
+				const formatted = formatPastedText(pastedText);
+				if (formatted) {
+					event.preventDefault();
+					const { selectionStart, selectionEnd, value } = textarea;
+					const newText = value.substring(0, selectionStart) + formatted + value.substring(selectionEnd);
+					textarea.value = newText;
+					textarea.selectionStart = textarea.selectionEnd = selectionStart + formatted.length;
+					textarea.dispatchEvent(new Event('input', { bubbles: true }));
+				}
+			});
+
 			textarea.addEventListener('input', () => {
 				if (saveTimeout) clearTimeout(saveTimeout);
 				saveStatusSignal.value = 'Saving...';
