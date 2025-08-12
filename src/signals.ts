@@ -201,6 +201,7 @@ export function showModalFromSignal(sig: ReadOnlySignal<boolean>, modal: HTMLDia
 export interface Prompt {
 	id: string;
 	text: string;
+	createdAt: number;
 }
 
 // --- Constants ---
@@ -220,15 +221,18 @@ const WELCOME_KEY = 'prompt-pad-welcomed';
 function parsePrompt(stored: string, key: string): Prompt {
 	const id = key.substring(PROMPT_PREFIX.length);
 	if (!stored) {
-		return { id, text: '' };
+		return { id, text: '', createdAt: 0 };
 	}
 	try {
 		// New format: stored as JSON object (without id)
 		const parsed = JSON.parse(stored);
+		if (typeof parsed.createdAt !== 'number') {
+			parsed.createdAt = 0;
+		}
 		return { ...parsed, id };
 	} catch (e) {
 		// Legacy format: stored as raw text
-		return { id, text: stored };
+		return { id, text: stored, createdAt: 0 };
 	}
 }
 
@@ -244,7 +248,7 @@ function serializePrompt(prompt: Prompt): string {
 }
 
 function getPromptFromStorage(id: string): Prompt {
-	if (typeof window === "undefined") return { id, text: "" };
+	if (typeof window === "undefined") return { id, text: "", createdAt: 0 };
 	try {
 		const storage = getStorage();
 		const key = PROMPT_PREFIX + id;
@@ -252,7 +256,7 @@ function getPromptFromStorage(id: string): Prompt {
 		return parsePrompt(storedValue, key);
 	} catch (error) {
 		console.warn(`Failed to get prompt for ${id} from storage:`, error);
-		return { id, text: "" };
+		return { id, text: "", createdAt: 0 };
 	}
 }
 
@@ -273,7 +277,8 @@ export const selectedPromptId = createHashParamSignal('id', true);
 
 /** Computed: The full list of all Prompt objects. */
 export const allPrompts = computed<Prompt[]>(() => {
-	return promptIds.value.map(id => getPrompt(id).value);
+	const prompts = promptIds.value.map(id => getPrompt(id).value);
+	return prompts.sort((a, b) => b.createdAt - a.createdAt);
 });
 
 /** Computed: The currently selected Prompt object. */
@@ -327,11 +332,16 @@ export function updatePromptText(id: string, text: string) {
  */
 export function addNewPrompt() {
 	const newId = crypto.randomUUID();
+	const newPrompt: Prompt = {
+		id: newId,
+		text: '',
+		createdAt: Date.now(),
+	};
 	try {
 		if (typeof window !== "undefined") {
 			const storage = getStorage();
 			// This setItem will trigger the createStorageKeysSignal to update promptIds
-			storage.setItem(PROMPT_PREFIX + newId, "");
+			storage.setItem(PROMPT_PREFIX + newId, serializePrompt(newPrompt));
 		}
 		// Create a signal for the new prompt
 		getPrompt(newId);
