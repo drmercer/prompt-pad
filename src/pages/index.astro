@@ -503,6 +503,12 @@
 					<div id="promptListContainer" class="prompt-list">
 						<!-- Prompt items will be dynamically inserted here -->
 					</div>
+					<details id="archivedPromptsContainer" class="hidden" style="margin-top: 20px;">
+						<summary style="cursor: pointer; font-weight: 500; padding: 8px; border: 1px solid #e1e8ed; border-radius: 6px;">Archived Prompts</summary>
+						<div id="archivedPromptList" class="prompt-list" style="margin-top: 10px;">
+							<!-- Archived prompt items will be dynamically inserted here -->
+						</div>
+					</details>
 				</div>
 			</div>
 		</div>
@@ -511,6 +517,10 @@
 			<div class="header">
 				<h1 class="title">Prompt Pad</h1>
 				<button id="homeButton" class="menu-button">All Prompts</button>
+			</div>
+
+			<div id="archivedBanner" class="hidden" style="background-color: #f39c12; color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: 500;">
+				This is an archived prompt. It is read-only.
 			</div>
 
 			<textarea
@@ -539,7 +549,10 @@
 					<a href="https://bolt.new/" target="_blank" class="service-button">Bolt</a>
 					<a href="https://gemini.google.com/" target="_blank" class="service-button">Gemini</a>
 				</div>
-				<button id="closeModal" class="close-button">Keep editing</button>
+				<div style="display: flex; gap: 12px; margin-top: 16px;">
+					<button id="archivePromptButton" class="service-button" style="flex: 1; background-color: #e67e22; color: white; border-color: #e67e22;">Archive</button>
+					<button id="closeModal" class="close-button" style="flex: 1; margin-top: 0;">Keep editing</button>
+				</div>
 			</div>
 		</dialog>
 
@@ -551,7 +564,9 @@
 				selectedPromptId,
 				updatePromptText,
 				addNewPrompt,
+				archivePrompt,
 			} from '../signals';
+			import { computed } from '@preact/signals';
 
 			// --- DOM elements ---
 			// Views
@@ -565,6 +580,7 @@
 			const textarea = document.getElementById('textEditor')! as HTMLTextAreaElement;
 			const saveStatusEl = document.getElementById('saveStatus')!;
 			const copyButton = document.getElementById('copyButton')! as HTMLButtonElement;
+			const archivedBanner = document.getElementById('archivedBanner')!;
 			const homeButton = document.getElementById('homeButton')! as HTMLButtonElement;
 			const insertCodeButton = document.getElementById('insertCodeButton')! as HTMLButtonElement;
 
@@ -572,15 +588,21 @@
 			const promptListContainer = document.getElementById('promptListContainer')!;
 			const createFirstPromptButton = document.getElementById('createFirstPromptButton')!;
 			const newPromptButton = document.getElementById('newPromptButton')!;
+			const archivedPromptsContainer = document.getElementById('archivedPromptsContainer')!;
+			const archivedPromptList = document.getElementById('archivedPromptList')!;
 
 			// Modals
 			const copyModal = document.getElementById('copyModal')! as HTMLDialogElement;
 			const closeModalButton = document.getElementById('closeModal')! as HTMLButtonElement;
+			const archivePromptButton = document.getElementById('archivePromptButton')! as HTMLButtonElement;
 
 			// --- State ---
 			let saveTimeout: number | null = null;
 			const saveDelay = 1000;
 			const saveStatusSignal = signal('Ready');
+
+			const activePrompts = computed(() => allPrompts.value.filter(p => !p.archived));
+			const archivedPrompts = computed(() => allPrompts.value.filter(p => p.archived));
 
 			// --- Effects to sync state with DOM ---
 
@@ -617,25 +639,40 @@
 				const prompt = selectedPrompt.value;
 				const currentText = textarea.value;
 
-				if (prompt && prompt.text !== currentText) {
-					textarea.value = prompt.text;
-				} else if (!prompt) {
+				if (prompt) {
+					if (prompt.text !== currentText) {
+						textarea.value = prompt.text;
+					}
+					// Handle archived state
+					const isArchived = prompt.archived === true;
+					textarea.readOnly = isArchived;
+					archivedBanner.classList.toggle('hidden', !isArchived);
+					copyButton.classList.toggle('hidden', isArchived);
+					insertCodeButton.classList.toggle('hidden', isArchived);
+				} else {
 					textarea.value = '';
 					textarea.placeholder = 'Select a prompt to start editing.';
+					textarea.readOnly = false;
+					archivedBanner.classList.add('hidden');
+					copyButton.classList.remove('hidden');
+					insertCodeButton.classList.remove('hidden');
 				}
 			});
 
 			// Effect to render the list of prompts on the landing page
 			effect(() => {
-				const prompts = allPrompts.value;
-				promptListContainer.innerHTML = ''; // Clear existing list
+				const active = activePrompts.value;
+				const archived = archivedPrompts.value;
 
-				if (prompts.length === 0) {
+				promptListContainer.innerHTML = ''; // Clear existing list
+				archivedPromptList.innerHTML = '';
+
+				if (active.length === 0 && archived.length === 0) {
 					// This case is handled by showing the welcomeView
 					return;
 				}
 
-				prompts.forEach((prompt) => {
+				active.forEach((prompt) => {
 					const item = document.createElement('div');
 					item.className = 'prompt-item';
 					item.textContent = prompt.text.substring(0, 80) || 'Empty Prompt';
@@ -644,6 +681,22 @@
 					});
 					promptListContainer.appendChild(item);
 				});
+
+				if (archived.length > 0) {
+					archivedPromptsContainer.classList.remove('hidden');
+					archived.forEach((prompt) => {
+						const item = document.createElement('div');
+						item.className = 'prompt-item';
+						item.textContent = prompt.text.substring(0, 80) || 'Empty Prompt';
+						item.style.cursor = 'pointer'; // Make it clear it's clickable
+						item.addEventListener('click', () => {
+							selectedPromptId.value = prompt.id;
+						});
+						archivedPromptList.appendChild(item);
+					});
+				} else {
+					archivedPromptsContainer.classList.add('hidden');
+				}
 			});
 
 			// Effect to update save status display
@@ -801,6 +854,14 @@
 			closeModalButton.addEventListener('click', () => copyModal.close());
 			copyModal.addEventListener('click', (e) => {
 				if (e.target === copyModal) {
+					copyModal.close();
+				}
+			});
+			archivePromptButton.addEventListener('click', () => {
+				const id = selectedPromptId.peek();
+				if (id) {
+					archivePrompt(id);
+					selectedPromptId.value = undefined; // Go home
 					copyModal.close();
 				}
 			});

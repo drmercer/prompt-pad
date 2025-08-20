@@ -201,6 +201,7 @@ export function showModalFromSignal(sig: ReadOnlySignal<boolean>, modal: HTMLDia
 export interface Prompt {
 	id: string;
 	text: string;
+	archived?: boolean;
 }
 
 // --- Constants ---
@@ -302,13 +303,13 @@ export function getPrompt(id: string): Signal<Prompt> {
 }
 
 /**
- * Updates the text of a specific prompt and saves it to localStorage.
+ * Updates a specific prompt and saves it to localStorage.
  * @param id The ID of the prompt to update.
- * @param text The new text for the prompt.
+ * @param updates An object containing the fields to update.
  */
-export function updatePromptText(id: string, text: string) {
+export function updatePrompt(id: string, updates: Partial<Omit<Prompt, 'id'>>) {
 	const promptSignal = getPrompt(id);
-	const newPromptData = { ...promptSignal.value, text };
+	const newPromptData = { ...promptSignal.value, ...updates };
 	promptSignal.value = newPromptData;
 
 	// Persist to storage
@@ -320,6 +321,23 @@ export function updatePromptText(id: string, text: string) {
 	} catch (error) {
 		console.error(`Failed to save prompt ${id} to storage:`, error);
 	}
+}
+
+/**
+ * Updates the text of a specific prompt.
+ * @param id The ID of the prompt to update.
+ * @param text The new text for the prompt.
+ */
+export function updatePromptText(id: string, text: string) {
+	updatePrompt(id, { text });
+}
+
+/**
+ * Archives a specific prompt.
+ * @param id The ID of the prompt to archive.
+ */
+export function archivePrompt(id: string) {
+	updatePrompt(id, { archived: true });
 }
 
 /**
