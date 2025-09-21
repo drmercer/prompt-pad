@@ -3,6 +3,7 @@ dist/
 
 # Lucid extension build output
 bin/
+/lucid-code-cards/package.zip
 
 # generated types
 .astro/

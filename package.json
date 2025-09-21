@@ -8,7 +8,8 @@
     "build": "astro check && astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "dev:lucidext": "cd lucid-code-cards && lucid-package test-editor-extension code-cards"
+    "dev:lucidext": "cd lucid-code-cards && lucid-package test-editor-extension code-cards",
+    "build:lucidext": "cd lucid-code-cards && lucid-package bundle"
   },
   "dependencies": {
     "@preact/signals": "^2.2.1",
