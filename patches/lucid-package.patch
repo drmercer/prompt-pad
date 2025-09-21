@@ -1,0 +1,49 @@
+diff --git a/src/editorextension.js b/src/editorextension.js
+index 6bf4f00b713258e7ca328f62c74dddb9314bb119..603a98a764751ea1042c2e651d94ab2a69909950 100755
+--- a/src/editorextension.js
++++ b/src/editorextension.js
+@@ -61,7 +61,7 @@ async function updateExtensionSDK(name) {
+     const extensionCodePath = path.join('editorextensions', await getExtensionCodeDirectoryName(name));
+     process.chdir(extensionCodePath);
+     console.log((0, theme_1.success)('Installing latest SDK in extension ' + name));
+-    console.log((0, shellutil_1.execSyncLoggingOutputOnError)('npm install lucid-extension-sdk@latest').toString());
++    console.log((0, shellutil_1.execSyncLoggingOutputOnError)('pnpm install lucid-extension-sdk@latest').toString());
+ }
+ exports.updateExtensionSDK = updateExtensionSDK;
+ /**
+diff --git a/src/installationutil.js b/src/installationutil.js
+index 20c03331a43606eb328384f7331fc53d64953f1f..c508e91698f79ea2c9e18684687b3fd5c26d0e10 100755
+--- a/src/installationutil.js
++++ b/src/installationutil.js
+@@ -7,7 +7,7 @@ const shellutil_1 = require("./shellutil");
+ const theme_1 = require("./theme");
+ function installDependenciesIfNeeded(isInternal, skipSDKDependency = false, additionalDependencies = []) {
+     if (!oldFs.existsSync('node_modules')) {
+-        console.log((0, shellutil_1.execSyncLoggingOutputOnError)('npm install --silent').toString());
++        console.log((0, shellutil_1.execSyncLoggingOutputOnError)('pnpm install --silent').toString());
+     }
+     const sdkDir = path.join('node_modules', 'lucid-extension-sdk');
+     if (isInternal) {
+@@ -18,18 +18,18 @@ function installDependenciesIfNeeded(isInternal, skipSDKDependency = false, addi
+         // Otherwise, install the NPM version of the SDK directly. If you would like to opt out of this you can use the
+         // `--skip-sdk` CLI flag.
+         console.log((0, theme_1.success)('Adding dependency on SDK'));
+-        console.log((0, shellutil_1.execSyncLoggingOutputOnError)('npm install --save lucid-extension-sdk').toString());
++        console.log((0, shellutil_1.execSyncLoggingOutputOnError)('pnpm install --save lucid-extension-sdk').toString());
+     }
+     if (additionalDependencies.length) {
+-        console.log((0, shellutil_1.execSyncLoggingOutputOnError)(`npm install --silent ${additionalDependencies.reduce((acc, current) => `${acc} ${current}`, '')}`).toString());
++        console.log((0, shellutil_1.execSyncLoggingOutputOnError)(`pnpm install --silent ${additionalDependencies.reduce((acc, current) => `${acc} ${current}`, '')}`).toString());
+     }
+ }
+ exports.installDependenciesIfNeeded = installDependenciesIfNeeded;
+ function installReactProject(reactProjectName, typescript) {
+-    console.log((0, shellutil_1.execSyncLoggingOutputOnError)(`npm install create-react-app && npx create-react-app ${reactProjectName} ${typescript ? '--template typescript' : ''}`).toString());
++    console.log((0, shellutil_1.execSyncLoggingOutputOnError)(`pnpm install create-react-app && npx create-react-app ${reactProjectName} ${typescript ? '--template typescript' : ''}`).toString());
+ }
+ exports.installReactProject = installReactProject;
+ function installAngularProject(angularProjectName) {
+-    console.log((0, shellutil_1.execSyncLoggingOutputOnError)(`npm install @angular/cli && npx ng new ${angularProjectName}`).toString());
++    console.log((0, shellutil_1.execSyncLoggingOutputOnError)(`pnpm install @angular/cli && npx ng new ${angularProjectName}`).toString());
+ }
+ exports.installAngularProject = installAngularProject;

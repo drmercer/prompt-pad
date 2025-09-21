@@ -1,0 +1,25 @@
+{
+  "id": "0378f4eb-8196-4e5c-bc96-4848d43c8222",
+  "version": "0.0.0",
+  "extensions": [
+    {
+      "name": "code-cards",
+      "title": "Code Cards",
+      "products": [
+        "chart",
+        "spark"
+      ],
+      "codePath": "editorextensions/code-cards/bin/extension.js",
+      "scopes": [
+        "READ",
+        "WRITE",
+        "DOWNLOAD",
+        "SHOW_MODAL",
+        "CUSTOM_UI",
+        "NETWORK"
+      ]
+    }
+  ],
+  "shapeLibraries": [],
+  "oauthProviders": []
+}

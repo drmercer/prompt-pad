@@ -1,0 +1,27 @@
+<html>
+    <body>
+        <p id="message"></p>
+        <input type="file" id="upload"></input>
+
+        <script type="text/javascript">
+        window.addEventListener('message', (e) => {
+            document.getElementById('message').innerText = e.data['message'];
+        });
+
+        const input = document.getElementById('upload');
+        input.addEventListener('change', (event) => {
+            if (input.files?.length == 1) {
+                const fr = new FileReader();
+                fr.onload = () => {
+                    parent.postMessage({
+                        name:input.files[0].name,
+                        content:fr.result,
+                    }, '*')
+                };
+                fr.readAsText(input.files[0]);
+            }
+        });
+
+        </script>
+    </body>
+</html>

@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@preact/signals": "^2.2.1",
-    "astro": "^5.2.5"
+    "astro": "^5.2.5",
+    "lucid-package": "^0.0.124"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
