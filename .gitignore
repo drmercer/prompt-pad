@@ -1,6 +1,9 @@
 # build output
 dist/
 
+# Lucid extension build output
+bin/
+
 # generated types
 .astro/
 

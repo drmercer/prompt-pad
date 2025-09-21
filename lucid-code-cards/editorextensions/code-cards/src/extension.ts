@@ -1,14 +1,13 @@
 import {EditorClient, Menu, MenuType, Viewport} from 'lucid-extension-sdk';
-import {ImportModal} from './importmodal';
+import {log} from './logger';
 
 const client = new EditorClient();
 const menu = new Menu(client);
 const viewport = new Viewport(client);
 
-client.registerAction('show-import-modal', () => {
-    const modal = new ImportModal(client);
-    modal.show();
-});
+viewport.hookSelection((selection) => {
+  log('Selection changed', selection);
+})
 
 menu.addMenuItem({
     label: 'Show import modal',
