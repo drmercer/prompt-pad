@@ -1,5 +1,9 @@
 import { effect, Signal, signal } from "@preact/signals";
 
+export function getHashParam(paramName: string): string | undefined {
+	return new URLSearchParams(window.location.hash.substring(1)).get(paramName) ?? undefined;
+}
+
 /**
  * Creates a signal that is synced with a URL hash parameter.
  * @param paramName The name of the hash parameter to track.
@@ -7,12 +11,11 @@ import { effect, Signal, signal } from "@preact/signals";
  * @returns A signal representing the value of the hash parameter.
  */
 export function createHashParamSignal(paramName: string, replaceHistory = false): Signal<string | undefined> {
-	const getHashParam = () => new URLSearchParams(window.location.hash.substring(1)).get(paramName) ?? undefined;
 
-	const hashSignal = signal<string | undefined>(getHashParam());
+	const hashSignal = signal<string | undefined>(getHashParam(paramName));
 
 	const onHashChange = () => {
-		const newValue = getHashParam();
+		const newValue = getHashParam(paramName);
 		if (hashSignal.peek() !== newValue) {
 			hashSignal.value = newValue;
 		}

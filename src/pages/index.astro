@@ -575,7 +575,7 @@
         class="copy-button"
         aria-label="insert inline code">&lt;/&gt;</button
       >
-      <button id="copyButton" class="copy-button">Copy</button>
+      <button id="submitButton" class="copy-button">Copy</button>
     </div>
 
     <dialog id="copyModal" class="modal">
@@ -625,6 +625,7 @@
       } from "../signals";
       import { computed } from "@preact/signals";
       import { ShouldUsePostMessage } from "../postmessage";
+      import { getHashParam } from "../util/signalutil/hashparamsignal";
 
       // --- DOM elements ---
       // Views
@@ -639,8 +640,8 @@
         "textEditor",
       )! as HTMLTextAreaElement;
       const saveStatusEl = document.getElementById("saveStatus")!;
-      const copyButton = document.getElementById(
-        "copyButton",
+      const submitButton = document.getElementById(
+        "submitButton",
       )! as HTMLButtonElement;
       const archivedBanner = document.getElementById("archivedBanner")!;
       const homeButton = document.getElementById(
@@ -673,6 +674,14 @@
       const archivePromptButton = document.getElementById(
         "archivePromptButton",
       )! as HTMLButtonElement;
+
+      // Settings
+      const submitViaPostMessage =
+        ShouldUsePostMessage && getHashParam("submit") === "pm";
+      if (submitViaPostMessage) {
+        console.log("Using postMessage to submit prompts because submit=pm");
+        submitButton.textContent = "Send to agent";
+      }
 
       // --- State ---
       let saveTimeout: number | null = null;
@@ -737,7 +746,7 @@
           const isArchived = prompt.archived === true;
           textarea.readOnly = isArchived;
           archivedBanner.classList.toggle("hidden", !isArchived);
-          copyButton.classList.toggle("hidden", isArchived);
+          submitButton.classList.toggle("hidden", isArchived);
           insertCodeButton.classList.toggle("hidden", isArchived);
         } else if (ShouldUsePostMessage) {
           textarea.disabled = true;
@@ -747,7 +756,7 @@
           textarea.placeholder = "(select a prompt to start editing)";
           textarea.readOnly = false;
           archivedBanner.classList.add("hidden");
-          copyButton.classList.remove("hidden");
+          submitButton.classList.remove("hidden");
           insertCodeButton.classList.remove("hidden");
         }
       });
@@ -934,17 +943,43 @@
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
       });
 
-      copyButton.addEventListener("click", async () => {
-        try {
-          const content = textarea.value;
-          if (!content.trim()) return;
-          await navigator.clipboard.writeText(content);
-          copyModal.showModal();
-        } catch (error) {
-          console.error("Failed to copy to clipboard:", error);
-          textarea.select(); // Fallback for older browsers
-          document.execCommand("copy");
-          copyModal.showModal();
+      submitButton.addEventListener("click", async () => {
+        const content = textarea.value;
+        if (!content.trim()) return;
+        if (submitViaPostMessage) {
+          // submit via postmessage
+          const prompt = selectedPrompt.peek();
+          if (!prompt) {
+            console.error("No prompt selected, cannot submit");
+            return;
+          }
+          const upToDatePrompt = {
+            ...prompt,
+            text: content,
+          };
+          window.parent.postMessage(
+            {
+              type: "submitPrompt",
+              prompt: upToDatePrompt,
+            },
+            "*",
+          );
+          console.log("Submitted prompt via postMessage", upToDatePrompt);
+          saveStatusSignal.value = "Submitted to an agent!";
+        } else {
+          // copy to clipboard (the normal way)
+          try {
+            await navigator.clipboard.writeText(content);
+            copyModal.showModal();
+          } catch (error) {
+            console.warn(
+              "Failed to copy to clipboard; falling back to execCommand",
+              error,
+            );
+            textarea.select(); // Fallback for older browsers
+            document.execCommand("copy");
+            copyModal.showModal();
+          }
         }
       });
 
