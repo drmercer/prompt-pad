@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Cards</title>
+  <style>
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    iframe {
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+  <iframe id="promptPad" src="https://prompt-pad.danmercer.net" title="Prompt Pad (prompt editor)"></iframe>
+
+  <script>
+    const promptPadFrame = document.getElementById('promptPad');
+
+    window.addEventListener('message', (event) => {
+      if (event.source === promptPadFrame.contentWindow) {
+        if (event.origin !== 'https://prompt-pad.danmercer.net') return;
+
+        log('Message from Prompt Pad:', event.data);
+      } else if (event.source === window.parent) {
+        // Handle messages from the parent window if necessary
+        log('Message from extension:', event.data);
+      }
+    });
+
+    function log(...args) {
+      console.log('%c[Code Cards]', 'background-color: lightblue;', ...args);
+    }
+  </script>
+
+</body>
+
+</html>

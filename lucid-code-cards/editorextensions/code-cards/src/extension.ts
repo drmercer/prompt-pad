@@ -1,19 +1,10 @@
-import {BlockProxy, EditorClient, Menu, Panel, PanelLocation, Viewport} from 'lucid-extension-sdk';
+import {DocumentProxy, EditorClient, Menu, Viewport} from 'lucid-extension-sdk';
 import {log} from './logger';
+import { CodeCardsPanel } from './panel';
 
 const client = new EditorClient();
 const viewport = new Viewport(client);
-
-class MyPanel extends Panel {
-  constructor(client: EditorClient) {
-    super(client, {
-      iconUrl: 'https://danmercer.net/favicon.svg',
-      title: 'Code Cards',
-      location: PanelLocation.RightDock,
-      url: 'https://danmercer.net',
-    });
-  }
-}
+const document = new DocumentProxy(client);
 
 client.registerAction('open-code-cards', () => {
   log('Action: Open Code Cards');
@@ -26,14 +17,6 @@ menu.addContextMenuItem({
   action: 'open-code-cards',
 });
 
-const panel = new MyPanel(client);
+const panel = new CodeCardsPanel(client, viewport, document);
 
-viewport.hookSelection((selection) => {
-  if (selection.length == 1 && selection[0] instanceof BlockProxy) {
-    const block = selection[0] as BlockProxy;
-    log('Selected block ID:', block.id, block.getClassName());
-    panel.show();
-  } else {
-    panel.hide();
-  }
-})
+log('Extension initialized!');
