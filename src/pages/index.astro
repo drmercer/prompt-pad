@@ -1,892 +1,984 @@
 ---
-// Simple text editor with auto-save functionality
+// Main app
 ---
 
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<title>Prompt Pad</title>
-		<style>
-			* {
-				margin: 0;
-				padding: 0;
-				box-sizing: border-box;
-			}
-
-			body {
-				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-				background-color: #fafafa;
-				color: #333;
-				line-height: 1.6;
-			}
-
-			.hidden {
-				display: none !important;
-			}
-
-			.landing-page {
-				min-height: 100vh;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				justify-content: center;
-				padding: 20px;
-				text-align: center;
-			}
-
-			.landing-content {
-				max-width: 600px;
-				width: 100%;
-			}
-
-			.landing-title {
-				font-size: 24px;
-				font-weight: 600;
-				color: #2c3e50;
-				margin-bottom: 16px;
-			}
-
-			.container {
-				min-height: 100vh;
-				display: flex;
-				flex-direction: column;
-				padding: 20px;
-				max-width: 100%;
-				padding-bottom: 80px; /* Space for toolbar */
-			}
-
-			.header {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				margin-bottom: 20px;
-				padding-bottom: 15px;
-				border-bottom: 1px solid #e5e5e5;
-			}
-
-			.title {
-				font-size: 18px;
-				font-weight: 600;
-				color: #2c3e50;
-			}
-
-			.save-status {
-				font-size: 14px;
-				color: #7f8c8d;
-				opacity: 0;
-				transition: opacity 0.3s ease;
-			}
-
-			.save-status.visible {
-				opacity: 1;
-			}
-
-			.save-status.saving {
-				color: #f39c12;
-			}
-
-			.save-status.saved {
-				color: #27ae60;
-			}
-
-			.textarea {
-				width: 100%;
-				max-width: 90ch;
-				margin: 0 auto;
-				min-height: 100px;
-				padding: 20px;
-				border: 1px solid #e1e8ed;
-				border-radius: 8px;
-				font-family: inherit;
-				font-size: 16px;
-				line-height: 1.6;
-				resize: none;
-				outline: none;
-				background-color: #ffffff;
-				color: #333;
-				field-sizing: content;
-				transition: border-color 0.2s ease, box-shadow 0.2s ease;
-			}
-
-			.textarea:focus {
-				border-color: #3498db;
-				box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-			}
-
-			.textarea::placeholder {
-				color: #bdc3c7;
-			}
-
-			.copy-button {
-				background: #3498db;
-				color: white;
-				border: none;
-				padding: 8px 16px;
-				border-radius: 6px;
-				font-size: 14px;
-				font-weight: 500;
-				cursor: pointer;
-				transition: background-color 0.2s ease;
-				font-family: inherit;
-			}
-
-			.copy-button:hover {
-				background: #2980b9;
-			}
-
-			.copy-button:active {
-				transform: translateY(1px);
-			}
-
-			.modal {
-				border: none;
-				border-radius: 12px;
-				padding: 0;
-				max-width: 400px;
-				width: 90%;
-				box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-				margin: auto;
-			}
-
-			.modal::backdrop {
-				background: rgba(0, 0, 0, 0.5);
-				backdrop-filter: blur(4px);
-			}
-
-			.modal-content {
-				padding: 24px;
-				text-align: center;
-			}
-
-			.modal-title {
-				font-size: 18px;
-				font-weight: 600;
-				color: #27ae60;
-				margin-bottom: 8px;
-			}
-
-			.modal-subtitle {
-				font-size: 14px;
-				color: #7f8c8d;
-				margin-bottom: 20px;
-			}
-
-			.modal-buttons {
-				display: flex;
-				gap: 12px;
-				justify-content: center;
-				flex-wrap: wrap;
-			}
-
-			.service-button {
-				background: #ffffff;
-				color: #333;
-				border: 2px solid #e1e8ed;
-				padding: 10px 16px;
-				border-radius: 8px;
-				font-size: 14px;
-				font-weight: 500;
-				text-decoration: none;
-				cursor: pointer;
-				transition: all 0.2s ease;
-				display: inline-block;
-				font-family: inherit;
-			}
-
-			.service-button:hover {
-				border-color: #3498db;
-				color: #3498db;
-				transform: translateY(-1px);
-			}
-
-			.close-button {
-				background: #95a5a6;
-				color: white;
-				border: none;
-				padding: 10px 20px;
-				border-radius: 8px;
-				font-size: 14px;
-				font-weight: 500;
-				cursor: pointer;
-				margin-top: 16px;
-				transition: background-color 0.2s ease;
-				font-family: inherit;
-			}
-
-			.close-button:hover {
-				background: #7f8c8d;
-			}
-
-			.welcome-text {
-				text-align: left;
-				margin-bottom: 20px;
-			}
-
-			.welcome-text p {
-				margin-bottom: 16px;
-			}
-
-			.welcome-text p:last-child {
-				margin-bottom: 0;
-				text-align: center;
-				font-style: italic;
-				color: #7f8c8d;
-				font-size: 14px;
-			}
-
-			.bolt-link {
-				color: #3498db;
-				text-decoration: none;
-				font-weight: 500;
-			}
-
-			.bolt-link:hover {
-				text-decoration: underline;
-			}
-
-			.toolbar {
-				position: fixed;
-				bottom: 0;
-				left: 0;
-				right: 0;
-				display: flex;
-				justify-content: flex-end;
-				align-items: center;
-				padding: 12px 20px;
-				background-color: #fcfcfc;
-				border-top: 2px solid #e5e5e5;
-				gap: 16px;
-			}
-
-			.menu-button {
-				background: none;
-				border: 1px solid #e1e8ed;
-				color: #333;
-				padding: 6px 12px;
-				border-radius: 6px;
-				font-size: 14px;
-				font-weight: 500;
-				cursor: pointer;
-				transition: all 0.2s ease;
-				margin-left: auto;
-			}
-
-			.menu-button:hover {
-				border-color: #3498db;
-				color: #3498db;
-			}
-
-			.prompt-list {
-				margin-bottom: 20px;
-				max-height: 40vh;
-				overflow-y: auto;
-				border: 1px solid #e1e8ed;
-				border-radius: 8px;
-				padding: 8px;
-			}
-
-			.prompt-item {
-				display: flex;
-				align-items: center;
-				justify-content: space-between;
-				padding: 12px;
-				border-radius: 6px;
-				cursor: pointer;
-				margin-bottom: 8px;
-				background-color: #f9f9f9;
-				border: 1px solid #eee;
-				text-align: left;
-				font-size: 14px;
-				white-space: nowrap;
-				overflow: hidden;
-				text-overflow: ellipsis;
-			}
-
-			.prompt-item:last-child {
-				margin-bottom: 0;
-			}
-
-			.prompt-item:hover {
-				background-color: #eef;
-				border-color: #3498db;
-			}
-
-			.prompt-item.active {
-				background-color: #e0eaf3;
-				border-color: #3498db;
-				font-weight: 600;
-			}
-
-			@media (max-width: 768px) {
-				.container {
-					padding: 15px;
-				}
-
-				.textarea {
-					padding: 15px;
-					font-size: 16px;
-					max-width: 100%;
-				}
-
-				.title {
-					font-size: 16px;
-				}
-
-				.save-status {
-					font-size: 12px;
-				}
-
-				.modal-buttons {
-					flex-direction: column;
-				}
-
-				.service-button {
-					width: 100%;
-				}
-			}
-
-			@media (max-width: 480px) {
-				.container {
-					padding: 10px;
-				}
-
-				.header {
-					flex-direction: column;
-					align-items: flex-start;
-					gap: 10px;
-				}
-
-				.textarea {
-					padding: 12px;
-				}
-			}
-
-			@media (prefers-color-scheme: dark) {
-				body {
-					background-color: #121212;
-					color: #e0e0e0;
-				}
-
-				.header {
-					border-bottom-color: #333;
-				}
-
-				.title {
-					color: #e0e0e0;
-				}
-
-				.textarea {
-					background-color: #1e1e1e;
-					color: #e0e0e0;
-					border-color: #444;
-				}
-
-				.textarea:focus {
-					border-color: #5fa8e3;
-					box-shadow: 0 0 0 3px rgba(95, 168, 227, 0.2);
-				}
-
-				.textarea::placeholder {
-					color: #666;
-				}
-
-				.toolbar {
-					background-color: #1e1e1e;
-					border-top-color: #333;
-				}
-
-				.copy-button {
-					background-color: #5fa8e3;
-					color: #121212;
-				}
-
-				.copy-button:hover {
-					background-color: #7bb9e8;
-				}
-
-				.modal {
-					background-color: #2b2b2b;
-					box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-				}
-
-				.modal-content {
-					color: #e0e0e0;
-				}
-
-				.modal-title {
-					color: #73c991;
-				}
-
-				.modal-subtitle {
-					color: #aaa;
-				}
-
-				.service-button {
-					background-color: #333;
-					color: #e0e0e0;
-					border-color: #555;
-				}
-
-				.service-button:hover {
-					border-color: #5fa8e3;
-					color: #5fa8e3;
-				}
-
-				.close-button {
-					background-color: #666;
-				}
-
-				.close-button:hover {
-					background-color: #777;
-				}
-
-				.menu-button {
-					border-color: #555;
-					color: #e0e0e0;
-				}
-
-				.menu-button:hover {
-					border-color: #5fa8e3;
-					color: #5fa8e3;
-				}
-
-				.prompt-list {
-					border-color: #444;
-				}
-
-				.prompt-item {
-					background-color: #2b2b2b;
-					border-color: #444;
-				}
-
-				.prompt-item:hover {
-					background-color: #3a3a3a;
-					border-color: #5fa8e3;
-				}
-
-				.prompt-item.active {
-					background-color: #3a4a5a;
-					border-color: #5fa8e3;
-				}
-
-				.landing-page {
-					background-color: #121212;
-					color: #e0e0e0;
-				}
-				.landing-title {
-					color: #e0e0e0;
-				}
-			}
-		</style>
-	</head>
-	<body>
-		<div id="landingPage" class="landing-page">
-			<div class="landing-content">
-				<!-- This view is shown when there are no prompts -->
-				<div id="welcomeView" class="hidden">
-					<h1 class="landing-title">Welcome to Prompt Pad</h1>
-					<div class="welcome-text">
-						<p>Prompt Pad is a tool for drafting prompts for coding AIs like Jules, Bolt, or Claude Code. It's just a simple text editor with autosave. Its purpose is to make it easier to work on a lengthier prompt without worrying about losing your progress if you get interrupted and switch away for a bit.</p>
-					</div>
-					<button id="createFirstPromptButton" class="service-button">Create your first prompt</button>
-				</div>
-
-				<!-- This view is shown when prompts exist -->
-				<div id="promptListView" class="hidden">
-					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-						<h1 class="landing-title" style="margin: 0;">Your Prompts</h1>
-						<button id="newPromptButton" class="service-button">New Prompt</button>
-					</div>
-					<div id="promptListContainer" class="prompt-list">
-						<!-- Prompt items will be dynamically inserted here -->
-					</div>
-					<details id="archivedPromptsContainer" class="hidden" style="margin-top: 20px;">
-						<summary style="cursor: pointer; font-weight: 500; padding: 8px; border: 1px solid #e1e8ed; border-radius: 6px;">Archived Prompts</summary>
-						<div id="archivedPromptList" class="prompt-list" style="margin-top: 10px;">
-							<!-- Archived prompt items will be dynamically inserted here -->
-						</div>
-					</details>
-				</div>
-			</div>
-		</div>
-
-		<div id="editorContainer" class="container hidden">
-			<div class="header">
-				<h1 class="title">Prompt Pad</h1>
-				<button id="homeButton" class="menu-button">All Prompts</button>
-			</div>
-
-			<div id="archivedBanner" class="hidden" style="background-color: #f39c12; color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: 500;">
-				This is an archived prompt. It is read-only.
-			</div>
-
-			<textarea
-				id="textEditor"
-				class="textarea"
-				placeholder="Start typing... Your text will be automatically saved."
-				spellcheck="false"
-				autocomplete="off"
-				autocorrect="off"
-				autocapitalize="off"
-			></textarea>
-		</div>
-
-		<div id="toolbar" class="toolbar hidden">
-			<div id="saveStatus" class="save-status">Ready</div>
-			<button id="insertCodeButton" class="copy-button" aria-label="insert inline code">&lt;/&gt;</button>
-			<button id="copyButton" class="copy-button">Copy</button>
-		</div>
-
-		<dialog id="copyModal" class="modal">
-			<div class="modal-content">
-				<h2 class="modal-title">✓ Text Copied!</h2>
-				<p class="modal-subtitle">Your text is now in your clipboard. Continue in:</p>
-				<div class="modal-buttons">
-					<a href="https://jules.google.com/task" target="_blank" class="service-button">Jules</a>
-					<a href="https://bolt.new/" target="_blank" class="service-button">Bolt</a>
-					<a href="https://gemini.google.com/" target="_blank" class="service-button">Gemini</a>
-				</div>
-				<div style="display: flex; gap: 12px; margin-top: 16px;">
-					<button id="archivePromptButton" class="service-button" style="flex: 1; background-color: #e67e22; color: white; border-color: #e67e22;">Archive</button>
-					<button id="closeModal" class="close-button" style="flex: 1; margin-top: 0;">Keep editing</button>
-				</div>
-			</div>
-		</dialog>
-
-		<script>
-			import { effect, signal } from '@preact/signals';
-			import {
-				allPrompts,
-				selectedPrompt,
-				selectedPromptId,
-				addNewPrompt,
-			} from '../signals';
-			import { computed } from '@preact/signals';
-
-			// --- DOM elements ---
-			// Views
-			const landingPage = document.getElementById('landingPage')!;
-			const editorContainer = document.getElementById('editorContainer')!;
-			const toolbar = document.getElementById('toolbar')!;
-			const welcomeView = document.getElementById('welcomeView')!;
-			const promptListView = document.getElementById('promptListView')!;
-
-			// Editor
-			const textarea = document.getElementById('textEditor')! as HTMLTextAreaElement;
-			const saveStatusEl = document.getElementById('saveStatus')!;
-			const copyButton = document.getElementById('copyButton')! as HTMLButtonElement;
-			const archivedBanner = document.getElementById('archivedBanner')!;
-			const homeButton = document.getElementById('homeButton')! as HTMLButtonElement;
-			const insertCodeButton = document.getElementById('insertCodeButton')! as HTMLButtonElement;
-
-			// Landing Page
-			const promptListContainer = document.getElementById('promptListContainer')!;
-			const createFirstPromptButton = document.getElementById('createFirstPromptButton')!;
-			const newPromptButton = document.getElementById('newPromptButton')!;
-			const archivedPromptsContainer = document.getElementById('archivedPromptsContainer')!;
-			const archivedPromptList = document.getElementById('archivedPromptList')!;
-
-			// Modals
-			const copyModal = document.getElementById('copyModal')! as HTMLDialogElement;
-			const closeModalButton = document.getElementById('closeModal')! as HTMLButtonElement;
-			const archivePromptButton = document.getElementById('archivePromptButton')! as HTMLButtonElement;
-
-			// --- State ---
-			let saveTimeout: number | null = null;
-			const saveDelay = 1000;
-			const saveStatusSignal = signal('Ready');
-
-			const activePrompts = computed(() => allPrompts.value.filter(p => !p.archived));
-			const archivedPrompts = computed(() => allPrompts.value.filter(p => p.archived));
-
-			// --- Effects to sync state with DOM ---
-
-			// Main view switching logic
-			effect(() => {
-				const id = selectedPromptId.value;
-				if (id) {
-					// Show editor
-					landingPage.classList.add('hidden');
-					editorContainer.classList.remove('hidden');
-					toolbar.classList.remove('hidden');
-				} else {
-					// Show landing page
-					landingPage.classList.remove('hidden');
-					editorContainer.classList.add('hidden');
-					toolbar.classList.add('hidden');
-				}
-			});
-
-			// Landing page content switching logic
-			effect(() => {
-				const prompts = allPrompts.value;
-				if (prompts.length > 0) {
-					welcomeView.classList.add('hidden');
-					promptListView.classList.remove('hidden');
-				} else {
-					welcomeView.classList.remove('hidden');
-					promptListView.classList.add('hidden');
-				}
-			});
-
-			// Effect to update the text editor when the selected prompt changes
-			effect(() => {
-				const prompt = selectedPrompt.value;
-				const currentText = textarea.value;
-
-				if (prompt) {
-					if (prompt.text !== currentText) {
-						textarea.value = prompt.text;
-					}
-					// Handle archived state
-					const isArchived = prompt.archived === true;
-					textarea.readOnly = isArchived;
-					archivedBanner.classList.toggle('hidden', !isArchived);
-					copyButton.classList.toggle('hidden', isArchived);
-					insertCodeButton.classList.toggle('hidden', isArchived);
-				} else {
-					textarea.value = '';
-					textarea.placeholder = 'Select a prompt to start editing.';
-					textarea.readOnly = false;
-					archivedBanner.classList.add('hidden');
-					copyButton.classList.remove('hidden');
-					insertCodeButton.classList.remove('hidden');
-				}
-			});
-
-			// Effect to render the list of prompts on the landing page
-			effect(() => {
-				const active = activePrompts.value;
-				const archived = archivedPrompts.value;
-
-				promptListContainer.innerHTML = ''; // Clear existing list
-				archivedPromptList.innerHTML = '';
-
-				if (active.length === 0 && archived.length === 0) {
-					// This case is handled by showing the welcomeView
-					return;
-				}
-
-				active.forEach((prompt) => {
-					const item = document.createElement('div');
-					item.className = 'prompt-item';
-					item.textContent = prompt.text.substring(0, 80) || 'Empty Prompt';
-					item.addEventListener('click', () => {
-						selectedPromptId.value = prompt.id;
-					});
-					promptListContainer.appendChild(item);
-				});
-
-				if (archived.length > 0) {
-					archivedPromptsContainer.classList.remove('hidden');
-					archived.forEach((prompt) => {
-						const item = document.createElement('div');
-						item.className = 'prompt-item';
-						item.textContent = prompt.text.substring(0, 80) || 'Empty Prompt';
-						item.style.cursor = 'pointer'; // Make it clear it's clickable
-						item.addEventListener('click', () => {
-							selectedPromptId.value = prompt.id;
-						});
-						archivedPromptList.appendChild(item);
-					});
-				} else {
-					archivedPromptsContainer.classList.add('hidden');
-				}
-			});
-
-			// Effect to update save status display
-			effect(() => {
-				saveStatusEl.textContent = saveStatusSignal.value;
-				saveStatusEl.className = 'save-status visible';
-				switch (saveStatusSignal.value) {
-					case 'Saving...':
-						saveStatusEl.classList.add('saving');
-						break;
-					case 'Saved':
-						saveStatusEl.classList.add('saved');
-						break;
-					case 'Error':
-						saveStatusEl.classList.add('error');
-						break;
-				}
-				if (saveStatusSignal.value === 'Ready' || saveStatusSignal.value === 'Saved') {
-					setTimeout(() => {
-						if (saveStatusSignal.peek() !== 'Saving...') {
-							saveStatusEl.classList.remove('visible');
-						}
-					}, 2000);
-				}
-			});
-
-			// --- Helper Functions ---
-			function formatPastedText(text: string): string | null {
-				try {
-					// GitHub file link
-					const fileLinkMatch = text.match(
-						/https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/(.+)#L(\d+)(?:-L(\d+))?/
-					);
-					if (fileLinkMatch) {
-						const [, filePath, startLine, endLine] = fileLinkMatch;
-						if (endLine) {
-							return `lines ${startLine}-${endLine} in ${filePath}`;
-						}
-						return `line ${startLine} in ${filePath}`;
-					}
-
-					const fileLinkMatchNoLines = text.match(
-						/https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/(.+)/
-					);
-					if (fileLinkMatchNoLines) {
-						return fileLinkMatchNoLines[1];
-					}
-
-					// GitHub commit link
-					const commitLinkMatch = text.match(
-						/https:\/\/github\.com\/[^\/]+\/[^\/]+\/commit\/([a-f0-9]{40})/
-					);
-					if (commitLinkMatch) {
-						return `commit ${commitLinkMatch[1].substring(0, 8)}`;
-					}
-
-					// Commit hash
-					if (/^[a-f0-9]{40}$/.test(text)) {
-						return text.substring(0, 8);
-					}
-				} catch (e) {
-					console.error('Error formatting pasted text:', e);
-					return null;
-				}
-
-				return null;
-			}
-
-			// --- Event Listeners ---
-
-			// Editor
-			textarea.addEventListener('paste', (event) => {
-				const pastedText = event.clipboardData?.getData('text');
-				if (!pastedText) return;
-
-				const formatted = formatPastedText(pastedText);
-				if (formatted) {
-					event.preventDefault();
-					const { selectionStart, selectionEnd, value } = textarea;
-					const newText = value.substring(0, selectionStart) + formatted + value.substring(selectionEnd);
-					textarea.value = newText;
-					textarea.selectionStart = textarea.selectionEnd = selectionStart + formatted.length;
-					textarea.dispatchEvent(new Event('input', { bubbles: true }));
-				}
-			});
-
-			textarea.addEventListener('input', () => {
-				if (saveTimeout) clearTimeout(saveTimeout);
-				saveStatusSignal.value = 'Saving...';
-				saveTimeout = window.setTimeout(() => {
-					const id = selectedPromptId.peek();
-					if (id) {
-						selectedPrompt.value = {
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Prompt Pad</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background-color: #fafafa;
+        color: #333;
+        line-height: 1.6;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .landing-page {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .landing-content {
+        max-width: 600px;
+        width: 100%;
+      }
+
+      .landing-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 16px;
+      }
+
+      .container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        max-width: 100%;
+        padding-bottom: 80px; /* Space for toolbar */
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e5e5e5;
+      }
+
+      .title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      .save-status {
+        font-size: 14px;
+        color: #7f8c8d;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .save-status.visible {
+        opacity: 1;
+      }
+
+      .save-status.saving {
+        color: #f39c12;
+      }
+
+      .save-status.saved {
+        color: #27ae60;
+      }
+
+      .textarea {
+        width: 100%;
+        max-width: 90ch;
+        margin: 0 auto;
+        min-height: 100px;
+        padding: 20px;
+        border: 1px solid #e1e8ed;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 16px;
+        line-height: 1.6;
+        resize: none;
+        outline: none;
+        background-color: #ffffff;
+        color: #333;
+        field-sizing: content;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .textarea:focus {
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+      }
+
+      .textarea::placeholder {
+        color: #bdc3c7;
+      }
+
+      .copy-button {
+        background: #3498db;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        font-family: inherit;
+      }
+
+      .copy-button:hover {
+        background: #2980b9;
+      }
+
+      .copy-button:active {
+        transform: translateY(1px);
+      }
+
+      .modal {
+        border: none;
+        border-radius: 12px;
+        padding: 0;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        margin: auto;
+      }
+
+      .modal::backdrop {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+      }
+
+      .modal-content {
+        padding: 24px;
+        text-align: center;
+      }
+
+      .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #27ae60;
+        margin-bottom: 8px;
+      }
+
+      .modal-subtitle {
+        font-size: 14px;
+        color: #7f8c8d;
+        margin-bottom: 20px;
+      }
+
+      .modal-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .service-button {
+        background: #ffffff;
+        color: #333;
+        border: 2px solid #e1e8ed;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-block;
+        font-family: inherit;
+      }
+
+      .service-button:hover {
+        border-color: #3498db;
+        color: #3498db;
+        transform: translateY(-1px);
+      }
+
+      .close-button {
+        background: #95a5a6;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        margin-top: 16px;
+        transition: background-color 0.2s ease;
+        font-family: inherit;
+      }
+
+      .close-button:hover {
+        background: #7f8c8d;
+      }
+
+      .welcome-text {
+        text-align: left;
+        margin-bottom: 20px;
+      }
+
+      .welcome-text p {
+        margin-bottom: 16px;
+      }
+
+      .welcome-text p:last-child {
+        margin-bottom: 0;
+        text-align: center;
+        font-style: italic;
+        color: #7f8c8d;
+        font-size: 14px;
+      }
+
+      .bolt-link {
+        color: #3498db;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .bolt-link:hover {
+        text-decoration: underline;
+      }
+
+      .toolbar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 12px 20px;
+        background-color: #fcfcfc;
+        border-top: 2px solid #e5e5e5;
+        gap: 16px;
+      }
+
+      .menu-button {
+        background: none;
+        border: 1px solid #e1e8ed;
+        color: #333;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-left: auto;
+      }
+
+      .menu-button:hover {
+        border-color: #3498db;
+        color: #3498db;
+      }
+
+      .prompt-list {
+        margin-bottom: 20px;
+        max-height: 40vh;
+        overflow-y: auto;
+        border: 1px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 8px;
+      }
+
+      .prompt-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-bottom: 8px;
+        background-color: #f9f9f9;
+        border: 1px solid #eee;
+        text-align: left;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .prompt-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .prompt-item:hover {
+        background-color: #eef;
+        border-color: #3498db;
+      }
+
+      .prompt-item.active {
+        background-color: #e0eaf3;
+        border-color: #3498db;
+        font-weight: 600;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 15px;
+        }
+
+        .textarea {
+          padding: 15px;
+          font-size: 16px;
+          max-width: 100%;
+        }
+
+        .title {
+          font-size: 16px;
+        }
+
+        .save-status {
+          font-size: 12px;
+        }
+
+        .modal-buttons {
+          flex-direction: column;
+        }
+
+        .service-button {
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .container {
+          padding: 10px;
+        }
+
+        .header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
+        .textarea {
+          padding: 12px;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #121212;
+          color: #e0e0e0;
+        }
+
+        .header {
+          border-bottom-color: #333;
+        }
+
+        .title {
+          color: #e0e0e0;
+        }
+
+        .textarea {
+          background-color: #1e1e1e;
+          color: #e0e0e0;
+          border-color: #444;
+        }
+
+        .textarea:focus {
+          border-color: #5fa8e3;
+          box-shadow: 0 0 0 3px rgba(95, 168, 227, 0.2);
+        }
+
+        .textarea::placeholder {
+          color: #666;
+        }
+
+        .toolbar {
+          background-color: #1e1e1e;
+          border-top-color: #333;
+        }
+
+        .copy-button {
+          background-color: #5fa8e3;
+          color: #121212;
+        }
+
+        .copy-button:hover {
+          background-color: #7bb9e8;
+        }
+
+        .modal {
+          background-color: #2b2b2b;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+          color: #e0e0e0;
+        }
+
+        .modal-title {
+          color: #73c991;
+        }
+
+        .modal-subtitle {
+          color: #aaa;
+        }
+
+        .service-button {
+          background-color: #333;
+          color: #e0e0e0;
+          border-color: #555;
+        }
+
+        .service-button:hover {
+          border-color: #5fa8e3;
+          color: #5fa8e3;
+        }
+
+        .close-button {
+          background-color: #666;
+        }
+
+        .close-button:hover {
+          background-color: #777;
+        }
+
+        .menu-button {
+          border-color: #555;
+          color: #e0e0e0;
+        }
+
+        .menu-button:hover {
+          border-color: #5fa8e3;
+          color: #5fa8e3;
+        }
+
+        .prompt-list {
+          border-color: #444;
+        }
+
+        .prompt-item {
+          background-color: #2b2b2b;
+          border-color: #444;
+        }
+
+        .prompt-item:hover {
+          background-color: #3a3a3a;
+          border-color: #5fa8e3;
+        }
+
+        .prompt-item.active {
+          background-color: #3a4a5a;
+          border-color: #5fa8e3;
+        }
+
+        .landing-page {
+          background-color: #121212;
+          color: #e0e0e0;
+        }
+        .landing-title {
+          color: #e0e0e0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="landingPage" class="landing-page">
+      <div class="landing-content">
+        <!-- This view is shown when there are no prompts -->
+        <div id="welcomeView" class="hidden">
+          <h1 class="landing-title">Welcome to Prompt Pad</h1>
+          <div class="welcome-text">
+            <p>
+              Prompt Pad is a tool for drafting prompts for coding AIs like
+              Jules, Bolt, or Claude Code. It's just a simple text editor with
+              autosave. Its purpose is to make it easier to work on a lengthier
+              prompt without worrying about losing your progress if you get
+              interrupted and switch away for a bit.
+            </p>
+          </div>
+          <button id="createFirstPromptButton" class="service-button"
+            >Create your first prompt</button
+          >
+        </div>
+
+        <!-- This view is shown when prompts exist -->
+        <div id="promptListView" class="hidden">
+          <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"
+          >
+            <h1 class="landing-title" style="margin: 0;">Your Prompts</h1>
+            <button id="newPromptButton" class="service-button"
+              >New Prompt</button
+            >
+          </div>
+          <div id="promptListContainer" class="prompt-list">
+            <!-- Prompt items will be dynamically inserted here -->
+          </div>
+          <details
+            id="archivedPromptsContainer"
+            class="hidden"
+            style="margin-top: 20px;"
+          >
+            <summary
+              style="cursor: pointer; font-weight: 500; padding: 8px; border: 1px solid #e1e8ed; border-radius: 6px;"
+              >Archived Prompts</summary
+            >
+            <div
+              id="archivedPromptList"
+              class="prompt-list"
+              style="margin-top: 10px;"
+            >
+              <!-- Archived prompt items will be dynamically inserted here -->
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <div id="editorContainer" class="container hidden">
+      <div class="header">
+        <h1 class="title">Prompt Pad</h1>
+        <button id="homeButton" class="menu-button">All Prompts</button>
+      </div>
+
+      <div
+        id="archivedBanner"
+        class="hidden"
+        style="background-color: #f39c12; color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: 500;"
+      >
+        This is an archived prompt. It is read-only.
+      </div>
+
+      <textarea
+        id="textEditor"
+        class="textarea"
+        placeholder="Start typing... Your text will be automatically saved."
+        spellcheck="false"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"></textarea>
+    </div>
+
+    <div id="toolbar" class="toolbar hidden">
+      <div id="saveStatus" class="save-status">Ready</div>
+      <button
+        id="insertCodeButton"
+        class="copy-button"
+        aria-label="insert inline code">&lt;/&gt;</button
+      >
+      <button id="copyButton" class="copy-button">Copy</button>
+    </div>
+
+    <dialog id="copyModal" class="modal">
+      <div class="modal-content">
+        <h2 class="modal-title">✓ Text Copied!</h2>
+        <p class="modal-subtitle">
+          Your text is now in your clipboard. Continue in:
+        </p>
+        <div class="modal-buttons">
+          <a
+            href="https://jules.google.com/task"
+            target="_blank"
+            class="service-button">Jules</a
+          >
+          <a href="https://bolt.new/" target="_blank" class="service-button"
+            >Bolt</a
+          >
+          <a
+            href="https://gemini.google.com/"
+            target="_blank"
+            class="service-button">Gemini</a
+          >
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+          <button
+            id="archivePromptButton"
+            class="service-button"
+            style="flex: 1; background-color: #e67e22; color: white; border-color: #e67e22;"
+            >Archive</button
+          >
+          <button
+            id="closeModal"
+            class="close-button"
+            style="flex: 1; margin-top: 0;">Keep editing</button
+          >
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      import { effect, signal } from "@preact/signals";
+      import {
+        allPrompts,
+        selectedPrompt,
+        selectedPromptId,
+        addNewPrompt,
+      } from "../signals";
+      import { computed } from "@preact/signals";
+
+      // --- DOM elements ---
+      // Views
+      const landingPage = document.getElementById("landingPage")!;
+      const editorContainer = document.getElementById("editorContainer")!;
+      const toolbar = document.getElementById("toolbar")!;
+      const welcomeView = document.getElementById("welcomeView")!;
+      const promptListView = document.getElementById("promptListView")!;
+
+      // Editor
+      const textarea = document.getElementById(
+        "textEditor",
+      )! as HTMLTextAreaElement;
+      const saveStatusEl = document.getElementById("saveStatus")!;
+      const copyButton = document.getElementById(
+        "copyButton",
+      )! as HTMLButtonElement;
+      const archivedBanner = document.getElementById("archivedBanner")!;
+      const homeButton = document.getElementById(
+        "homeButton",
+      )! as HTMLButtonElement;
+      const insertCodeButton = document.getElementById(
+        "insertCodeButton",
+      )! as HTMLButtonElement;
+
+      // Landing Page
+      const promptListContainer = document.getElementById(
+        "promptListContainer",
+      )!;
+      const createFirstPromptButton = document.getElementById(
+        "createFirstPromptButton",
+      )!;
+      const newPromptButton = document.getElementById("newPromptButton")!;
+      const archivedPromptsContainer = document.getElementById(
+        "archivedPromptsContainer",
+      )!;
+      const archivedPromptList = document.getElementById("archivedPromptList")!;
+
+      // Modals
+      const copyModal = document.getElementById(
+        "copyModal",
+      )! as HTMLDialogElement;
+      const closeModalButton = document.getElementById(
+        "closeModal",
+      )! as HTMLButtonElement;
+      const archivePromptButton = document.getElementById(
+        "archivePromptButton",
+      )! as HTMLButtonElement;
+
+      // --- State ---
+      let saveTimeout: number | null = null;
+      const saveDelay = 1000;
+      const saveStatusSignal = signal("Ready");
+
+      const activePrompts = computed(() =>
+        allPrompts.value.filter((p) => !p.archived),
+      );
+      const archivedPrompts = computed(() =>
+        allPrompts.value.filter((p) => p.archived),
+      );
+
+      // --- Effects to sync state with DOM ---
+
+      // Main view switching logic
+      effect(() => {
+        const id = selectedPromptId.value;
+        if (id) {
+          // Show editor
+          landingPage.classList.add("hidden");
+          editorContainer.classList.remove("hidden");
+          toolbar.classList.remove("hidden");
+        } else {
+          // Show landing page
+          landingPage.classList.remove("hidden");
+          editorContainer.classList.add("hidden");
+          toolbar.classList.add("hidden");
+        }
+      });
+
+      // Landing page content switching logic
+      effect(() => {
+        const prompts = allPrompts.value;
+        if (prompts.length > 0) {
+          welcomeView.classList.add("hidden");
+          promptListView.classList.remove("hidden");
+        } else {
+          welcomeView.classList.remove("hidden");
+          promptListView.classList.add("hidden");
+        }
+      });
+
+      // Effect to update the text editor when the selected prompt changes
+      effect(() => {
+        const prompt = selectedPrompt.value;
+        const currentText = textarea.value;
+
+        if (prompt) {
+          if (prompt.text !== currentText) {
+            textarea.value = prompt.text;
+          }
+          // Handle archived state
+          const isArchived = prompt.archived === true;
+          textarea.readOnly = isArchived;
+          archivedBanner.classList.toggle("hidden", !isArchived);
+          copyButton.classList.toggle("hidden", isArchived);
+          insertCodeButton.classList.toggle("hidden", isArchived);
+        } else {
+          textarea.value = "";
+          textarea.placeholder = "Select a prompt to start editing.";
+          textarea.readOnly = false;
+          archivedBanner.classList.add("hidden");
+          copyButton.classList.remove("hidden");
+          insertCodeButton.classList.remove("hidden");
+        }
+      });
+
+      // Effect to render the list of prompts on the landing page
+      effect(() => {
+        const active = activePrompts.value;
+        const archived = archivedPrompts.value;
+
+        promptListContainer.innerHTML = ""; // Clear existing list
+        archivedPromptList.innerHTML = "";
+
+        if (active.length === 0 && archived.length === 0) {
+          // This case is handled by showing the welcomeView
+          return;
+        }
+
+        active.forEach((prompt) => {
+          const item = document.createElement("div");
+          item.className = "prompt-item";
+          item.textContent = prompt.text.substring(0, 80) || "Empty Prompt";
+          item.addEventListener("click", () => {
+            selectedPromptId.value = prompt.id;
+          });
+          promptListContainer.appendChild(item);
+        });
+
+        if (archived.length > 0) {
+          archivedPromptsContainer.classList.remove("hidden");
+          archived.forEach((prompt) => {
+            const item = document.createElement("div");
+            item.className = "prompt-item";
+            item.textContent = prompt.text.substring(0, 80) || "Empty Prompt";
+            item.style.cursor = "pointer"; // Make it clear it's clickable
+            item.addEventListener("click", () => {
+              selectedPromptId.value = prompt.id;
+            });
+            archivedPromptList.appendChild(item);
+          });
+        } else {
+          archivedPromptsContainer.classList.add("hidden");
+        }
+      });
+
+      // Effect to update save status display
+      effect(() => {
+        saveStatusEl.textContent = saveStatusSignal.value;
+        saveStatusEl.className = "save-status visible";
+        switch (saveStatusSignal.value) {
+          case "Saving...":
+            saveStatusEl.classList.add("saving");
+            break;
+          case "Saved":
+            saveStatusEl.classList.add("saved");
+            break;
+          case "Error":
+            saveStatusEl.classList.add("error");
+            break;
+        }
+        if (
+          saveStatusSignal.value === "Ready" ||
+          saveStatusSignal.value === "Saved"
+        ) {
+          setTimeout(() => {
+            if (saveStatusSignal.peek() !== "Saving...") {
+              saveStatusEl.classList.remove("visible");
+            }
+          }, 2000);
+        }
+      });
+
+      // --- Helper Functions ---
+      function formatPastedText(text: string): string | null {
+        try {
+          // GitHub file link
+          const fileLinkMatch = text.match(
+            /https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/(.+)#L(\d+)(?:-L(\d+))?/,
+          );
+          if (fileLinkMatch) {
+            const [, filePath, startLine, endLine] = fileLinkMatch;
+            if (endLine) {
+              return `lines ${startLine}-${endLine} in ${filePath}`;
+            }
+            return `line ${startLine} in ${filePath}`;
+          }
+
+          const fileLinkMatchNoLines = text.match(
+            /https:\/\/github\.com\/[^\/]+\/[^\/]+\/blob\/[^\/]+\/(.+)/,
+          );
+          if (fileLinkMatchNoLines) {
+            return fileLinkMatchNoLines[1];
+          }
+
+          // GitHub commit link
+          const commitLinkMatch = text.match(
+            /https:\/\/github\.com\/[^\/]+\/[^\/]+\/commit\/([a-f0-9]{40})/,
+          );
+          if (commitLinkMatch) {
+            return `commit ${commitLinkMatch[1].substring(0, 8)}`;
+          }
+
+          // Commit hash
+          if (/^[a-f0-9]{40}$/.test(text)) {
+            return text.substring(0, 8);
+          }
+        } catch (e) {
+          console.error("Error formatting pasted text:", e);
+          return null;
+        }
+
+        return null;
+      }
+
+      // --- Event Listeners ---
+
+      // Editor
+      textarea.addEventListener("paste", (event) => {
+        const pastedText = event.clipboardData?.getData("text");
+        if (!pastedText) return;
+
+        const formatted = formatPastedText(pastedText);
+        if (formatted) {
+          event.preventDefault();
+          const { selectionStart, selectionEnd, value } = textarea;
+          const newText =
+            value.substring(0, selectionStart) +
+            formatted +
+            value.substring(selectionEnd);
+          textarea.value = newText;
+          textarea.selectionStart = textarea.selectionEnd =
+            selectionStart + formatted.length;
+          textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+
+      textarea.addEventListener("input", () => {
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveStatusSignal.value = "Saving...";
+        saveTimeout = window.setTimeout(() => {
+          const id = selectedPromptId.peek();
+          if (id) {
+            selectedPrompt.value = {
               ...selectedPrompt.value!,
               text: textarea.value,
             };
-						saveStatusSignal.value = 'Saved';
-					}
-				}, saveDelay);
-			});
+            saveStatusSignal.value = "Saved";
+          }
+        }, saveDelay);
+      });
 
-			homeButton.addEventListener('click', () => {
-				selectedPromptId.value = undefined;
-			});
+      homeButton.addEventListener("click", () => {
+        selectedPromptId.value = undefined;
+      });
 
-			insertCodeButton.addEventListener('click', () => {
-				const { selectionStart, selectionEnd, value } = textarea;
-				const selectedText = value.substring(selectionStart, selectionEnd);
+      insertCodeButton.addEventListener("click", () => {
+        const { selectionStart, selectionEnd, value } = textarea;
+        const selectedText = value.substring(selectionStart, selectionEnd);
 
-				let newText;
-				let newSelectionStart;
-				let newSelectionEnd;
+        let newText;
+        let newSelectionStart;
+        let newSelectionEnd;
 
-				if (selectedText && !selectedText.includes('\n')) {
-					newText = `${value.substring(0, selectionStart)}\`${selectedText}\`${value.substring(
-						selectionEnd
-					)}`;
-					newSelectionStart = selectionStart + 1;
-					newSelectionEnd = selectionEnd + 1;
-				} else {
-					newText = `${value.substring(0, selectionStart)}\`${value.substring(selectionEnd)}`;
-					newSelectionStart = selectionStart + 1;
-					newSelectionEnd = selectionStart + 1;
-				}
+        if (selectedText && !selectedText.includes("\n")) {
+          newText = `${value.substring(0, selectionStart)}\`${selectedText}\`${value.substring(
+            selectionEnd,
+          )}`;
+          newSelectionStart = selectionStart + 1;
+          newSelectionEnd = selectionEnd + 1;
+        } else {
+          newText = `${value.substring(0, selectionStart)}\`${value.substring(selectionEnd)}`;
+          newSelectionStart = selectionStart + 1;
+          newSelectionEnd = selectionStart + 1;
+        }
 
-				textarea.value = newText;
-				textarea.selectionStart = newSelectionStart;
-				textarea.selectionEnd = newSelectionEnd;
-				textarea.focus();
-				// Manually trigger input event to notify signals of the change
-				textarea.dispatchEvent(new Event('input', { bubbles: true }));
-			});
+        textarea.value = newText;
+        textarea.selectionStart = newSelectionStart;
+        textarea.selectionEnd = newSelectionEnd;
+        textarea.focus();
+        // Manually trigger input event to notify signals of the change
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      });
 
-			copyButton.addEventListener('click', async () => {
-				try {
-					const content = textarea.value;
-					if (!content.trim()) return;
-					await navigator.clipboard.writeText(content);
-					copyModal.showModal();
-				} catch (error) {
-					console.error('Failed to copy to clipboard:', error);
-					textarea.select(); // Fallback for older browsers
-					document.execCommand('copy');
-					copyModal.showModal();
-				}
-			});
+      copyButton.addEventListener("click", async () => {
+        try {
+          const content = textarea.value;
+          if (!content.trim()) return;
+          await navigator.clipboard.writeText(content);
+          copyModal.showModal();
+        } catch (error) {
+          console.error("Failed to copy to clipboard:", error);
+          textarea.select(); // Fallback for older browsers
+          document.execCommand("copy");
+          copyModal.showModal();
+        }
+      });
 
-			// Landing Page
-			createFirstPromptButton.addEventListener('click', () => {
-				addNewPrompt();
-			});
+      // Landing Page
+      createFirstPromptButton.addEventListener("click", () => {
+        addNewPrompt();
+      });
 
-			newPromptButton.addEventListener('click', () => {
-				addNewPrompt();
-			});
+      newPromptButton.addEventListener("click", () => {
+        addNewPrompt();
+      });
 
-			// Modal
-			closeModalButton.addEventListener('click', () => copyModal.close());
-			copyModal.addEventListener('click', (e) => {
-				if (e.target === copyModal) {
-					copyModal.close();
-				}
-			});
-			archivePromptButton.addEventListener('click', () => {
-				const id = selectedPromptId.peek();
-				if (id) {
+      // Modal
+      closeModalButton.addEventListener("click", () => copyModal.close());
+      copyModal.addEventListener("click", (e) => {
+        if (e.target === copyModal) {
+          copyModal.close();
+        }
+      });
+      archivePromptButton.addEventListener("click", () => {
+        const id = selectedPromptId.peek();
+        if (id) {
           selectedPrompt.value = {
             ...selectedPrompt.value!,
             archived: true,
           };
-					selectedPromptId.value = undefined; // Go home
-					copyModal.close();
-				}
-			});
+          selectedPromptId.value = undefined; // Go home
+          copyModal.close();
+        }
+      });
 
-			// --- Mobile/UX Enhancements ---
+      // --- Mobile/UX Enhancements ---
 
-			// Visual Viewport API for sticky toolbar
-			if ('visualViewport' in window) {
-				const updateToolbarPosition = () => {
-					const viewport = window.visualViewport;
-					if (!viewport) return;
-					const keyboardHeight = window.innerHeight - viewport.height - viewport.offsetTop;
-					toolbar.style.bottom = `${keyboardHeight}px`;
-					editorContainer.style.paddingBottom = `calc(80px + ${keyboardHeight}px)`;
-					textarea.style.scrollPaddingBottom = `calc(80px + ${keyboardHeight}px)`;
-				};
+      // Visual Viewport API for sticky toolbar
+      if ("visualViewport" in window) {
+        const updateToolbarPosition = () => {
+          const viewport = window.visualViewport;
+          if (!viewport) return;
+          const keyboardHeight =
+            window.innerHeight - viewport.height - viewport.offsetTop;
+          toolbar.style.bottom = `${keyboardHeight}px`;
+          editorContainer.style.paddingBottom = `calc(80px + ${keyboardHeight}px)`;
+          textarea.style.scrollPaddingBottom = `calc(80px + ${keyboardHeight}px)`;
+        };
 
-				window.visualViewport?.addEventListener('resize', updateToolbarPosition);
-				window.visualViewport?.addEventListener('scroll', updateToolbarPosition);
-				updateToolbarPosition(); // Initial call
-			}
-		</script>
-	</body>
+        window.visualViewport?.addEventListener(
+          "resize",
+          updateToolbarPosition,
+        );
+        window.visualViewport?.addEventListener(
+          "scroll",
+          updateToolbarPosition,
+        );
+        updateToolbarPosition(); // Initial call
+      }
+    </script>
+  </body>
 </html>
