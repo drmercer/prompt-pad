@@ -5,7 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro check && astro build",
+    "check": "astro check --minimumFailingSeverity warning --minimumSeverity warning",
+    "agent-check": "pnpm run check",
+    "build": "pnpm run check && astro build",
     "preview": "astro preview",
     "astro": "astro",
     "dev:lucidext": "cd lucid-code-cards && lucid-package test-editor-extension code-cards",
