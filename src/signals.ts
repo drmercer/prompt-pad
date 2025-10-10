@@ -2,6 +2,7 @@ import { computed, Signal } from "@preact/signals";
 import { createStorageKeysSignal, createStorageSignal } from "./util/signalutil/storage";
 import { createHashParamSignal } from "./util/signalutil/hashparamsignal";
 import { withWriteFunction } from "./util/signalutil/writablesignal";
+import { createPostMessagePromptSignal, ShouldUsePostMessage } from "./postmessage";
 
 // --- Interfaces ---
 export interface Prompt {
@@ -68,7 +69,9 @@ export const allPrompts = computed<Prompt[]>(() => {
 });
 
 /** Computed: The currently selected Prompt object. */
-export const selectedPrompt: Signal<Prompt | undefined> = withWriteFunction(
+export const selectedPrompt: Signal<Prompt | undefined> = ShouldUsePostMessage ?
+  createPostMessagePromptSignal()
+: withWriteFunction(
   computed<Prompt | undefined>(() => {
     const id = selectedPromptId.value;
     return id ? getPrompt(id).value : undefined;

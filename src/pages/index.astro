@@ -624,6 +624,7 @@
         addNewPrompt,
       } from "../signals";
       import { computed } from "@preact/signals";
+      import { ShouldUsePostMessage } from "../postmessage";
 
       // --- DOM elements ---
       // Views
@@ -690,11 +691,16 @@
       // Main view switching logic
       effect(() => {
         const id = selectedPromptId.value;
-        if (id) {
+        // always display editor if using postMessage
+        if (id || ShouldUsePostMessage) {
           // Show editor
           landingPage.classList.add("hidden");
           editorContainer.classList.remove("hidden");
           toolbar.classList.remove("hidden");
+          if (ShouldUsePostMessage) {
+            // hide "All Prompts" button
+            homeButton.classList.add("hidden");
+          }
         } else {
           // Show landing page
           landingPage.classList.remove("hidden");
@@ -724,15 +730,18 @@
           if (prompt.text !== currentText) {
             textarea.value = prompt.text;
           }
+          textarea.disabled = false;
           // Handle archived state
           const isArchived = prompt.archived === true;
           textarea.readOnly = isArchived;
           archivedBanner.classList.toggle("hidden", !isArchived);
           copyButton.classList.toggle("hidden", isArchived);
           insertCodeButton.classList.toggle("hidden", isArchived);
+        } else if (ShouldUsePostMessage) {
+          textarea.disabled = true;
+          textarea.placeholder = "Loading...";
         } else {
           textarea.value = "";
-          textarea.placeholder = "Select a prompt to start editing.";
           textarea.readOnly = false;
           archivedBanner.classList.add("hidden");
           copyButton.classList.remove("hidden");
@@ -875,14 +884,15 @@
         if (saveTimeout) clearTimeout(saveTimeout);
         saveStatusSignal.value = "Saving...";
         saveTimeout = window.setTimeout(() => {
-          const id = selectedPromptId.peek();
-          if (id) {
+          const prompt = selectedPrompt.peek();
+          if (prompt) {
             selectedPrompt.value = {
-              ...selectedPrompt.value!,
+              ...prompt,
               text: textarea.value,
             };
-            saveStatusSignal.value = "Saved";
+            console.log("Auto-saved prompt", prompt.id);
           }
+          saveStatusSignal.value = "Saved";
         }, saveDelay);
       });
 
