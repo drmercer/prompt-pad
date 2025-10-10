@@ -731,6 +731,8 @@
             textarea.value = prompt.text;
           }
           textarea.disabled = false;
+          textarea.placeholder =
+            "Start typing... Your text will be automatically saved.";
           // Handle archived state
           const isArchived = prompt.archived === true;
           textarea.readOnly = isArchived;
@@ -742,6 +744,7 @@
           textarea.placeholder = "Loading...";
         } else {
           textarea.value = "";
+          textarea.placeholder = "(select a prompt to start editing)";
           textarea.readOnly = false;
           archivedBanner.classList.add("hidden");
           copyButton.classList.remove("hidden");
@@ -891,8 +894,11 @@
               text: textarea.value,
             };
             console.log("Auto-saved prompt", prompt.id);
+            saveStatusSignal.value = "Saved";
+          } else {
+            console.error("No prompt selected, cannot save");
+            saveStatusSignal.value = "Error";
           }
-          saveStatusSignal.value = "Saved";
         }, saveDelay);
       });
 
@@ -959,14 +965,16 @@
         }
       });
       archivePromptButton.addEventListener("click", () => {
-        const id = selectedPromptId.peek();
-        if (id) {
+        const prompt = selectedPrompt.peek();
+        if (prompt) {
           selectedPrompt.value = {
-            ...selectedPrompt.value!,
+            ...prompt,
             archived: true,
           };
           selectedPromptId.value = undefined; // Go home
           copyModal.close();
+        } else {
+          console.error("No prompt selected, nothing to archive");
         }
       });
 

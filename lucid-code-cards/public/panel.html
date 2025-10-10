@@ -30,14 +30,55 @@
   <script>
     const promptPadFrame = document.getElementById('promptPad');
 
+    const promptPadOrigin = new URL(promptPadFrame.src).origin;
+
+    promptPadFrame.addEventListener('load', () => {
+      log('Prompt Pad iframe loaded');
+      // notify the extension that the iframe has loaded
+      window.parent.postMessage({ type: 'promptPadLoaded' }, '*');
+    });
+
     window.addEventListener('message', (event) => {
       if (event.source === promptPadFrame.contentWindow) {
-        if (event.origin !== 'https://prompt-pad.danmercer.net') return;
-
+        if (event.origin !== promptPadOrigin) return;
         log('Message from Prompt Pad:', event.data);
+
+        if (event.data?.type === 'setPrompt' && event.data.prompt) {
+          // for the structure of the prompt object, see Prompt type in signals.ts in the web app
+          // for the structure of the outgoing message, see FromFrameMessage type in panel.ts in the extension
+          // { type: 'setCardData'; cardId: string; cardData: CodeCardData }
+          window.parent.postMessage({
+            type: 'setCardData',
+            cardId: event.data.prompt.id,
+            cardData: {
+              prompt: event.data.prompt.text,
+            },
+          }, '*');
+          log('Sent setCardData message to extension:', event.data.prompt);
+        }
+
       } else if (event.source === window.parent) {
-        // Handle messages from the parent window if necessary
         log('Message from extension:', event.data);
+
+        if (event.data?.type === 'selectionChanged') {
+          if (event.data.selection == null) {
+            // TODO hide iframe
+            log('No selection. TODO hide iframe?');
+          } else {
+            // for the structure of the selection object, see FromPanelMessage type in panel.ts in the extension
+            // { type: 'selectionChanged'; selection: { id: string; cardData: CodeCardData } | null }
+            // for the structure of the prompt object, see Prompt type in signals.ts in the web app
+            const prompt = {
+              id: event.data.selection.id,
+              text: event.data.selection.cardData.prompt,
+            }
+            promptPadFrame.contentWindow.postMessage({
+              type: 'setPrompt',
+              prompt,
+            }, promptPadOrigin);
+            log('Sent prompt to Prompt Pad iframe:', prompt);
+          }
+        }
       }
     });
 

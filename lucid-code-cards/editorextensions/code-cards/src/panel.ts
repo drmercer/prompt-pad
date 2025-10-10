@@ -3,10 +3,11 @@ import { assertNever } from "./util/never";
 import { log } from "./logger";
 
 type FromPanelMessage =
-| { type: 'selectionChanged'; selection: { id: string; cardData: CodeCardData } | null };
+  | { type: 'selectionChanged'; selection: { id: string; cardData: CodeCardData } | null };
 
 type FromFrameMessage =
   | { type: 'log'; message: string }
+  | { type: 'promptPadLoaded' }
   | { type: 'setCardData'; cardId: string; cardData: CodeCardData }
 
 export class CodeCardsPanel extends Panel {
@@ -28,6 +29,8 @@ export class CodeCardsPanel extends Panel {
   protected override messageFromFrame(message: FromFrameMessage): void {
     if (message.type === 'log') {
       console.log('Message from panel:', message.message);
+    } else if (message.type === 'promptPadLoaded') {
+      this.sendSelection();
     } else if (message.type === 'setCardData') {
       const item: ItemProxy|null = this.client.getBlockProxy(message.cardId);
       if (item && item instanceof CardBlockProxy) {
@@ -69,7 +72,7 @@ export class CodeCardsPanel extends Panel {
     super.hide();
   }
 
-  private sendSelection(selectFirstCard: boolean = false) {
+  private sendSelection() {
     const selection = this.vp.getSelectedItems();
     if (selection.length == 1 && selection[0] instanceof CardBlockProxy) {
       if (this.autoOpen) {
@@ -97,8 +100,6 @@ export class CodeCardsPanel extends Panel {
           cardData: readPrompt(card),
         } : null,
       });
-    } else {
-      log('Panel not loaded yet; skipping selectionChanged message');
     }
   }
 }
