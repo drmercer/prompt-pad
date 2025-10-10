@@ -562,9 +562,7 @@
 				allPrompts,
 				selectedPrompt,
 				selectedPromptId,
-				updatePromptText,
 				addNewPrompt,
-				archivePrompt,
 			} from '../signals';
 			import { computed } from '@preact/signals';
 
@@ -789,7 +787,10 @@
 				saveTimeout = window.setTimeout(() => {
 					const id = selectedPromptId.peek();
 					if (id) {
-						updatePromptText(id, textarea.value);
+						selectedPrompt.value = {
+              ...selectedPrompt.value!,
+              text: textarea.value,
+            };
 						saveStatusSignal.value = 'Saved';
 					}
 				}, saveDelay);
@@ -860,7 +861,10 @@
 			archivePromptButton.addEventListener('click', () => {
 				const id = selectedPromptId.peek();
 				if (id) {
-					archivePrompt(id);
+          selectedPrompt.value = {
+            ...selectedPrompt.value!,
+            archived: true,
+          };
 					selectedPromptId.value = undefined; // Go home
 					copyModal.close();
 				}
