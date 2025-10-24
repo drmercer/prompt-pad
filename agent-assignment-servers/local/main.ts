@@ -28,10 +28,17 @@ if (!bearerToken) {
 }
 
 const repoPath = Deno.args[0];
-if (!repoPath) {
-  console.error("Usage: deno run --allow-run --allow-read --allow-write main.ts <path-to-repo>");
+const commandAndArgs = Deno.args.slice(1);
+
+if (!repoPath || commandAndArgs.length === 0) {
+  console.error(
+    "Usage: deno run -A main.ts <path-to-repo> -- <command-and-args>",
+  );
   Deno.exit(1);
 }
+
+const command = commandAndArgs[0];
+const args = commandAndArgs.slice(1);
 
 const dbPath = `./db-${btoa(repoPath).replace(/=/g, "")}.json`;
 
@@ -111,7 +118,7 @@ Deno.serve({ port, hostname }, async (req) => {
   }
 
   if (req.method === "GET") {
-    return new Response(JSON.stringify({ serverName: "Gemini Agent Assignment Server", tasks }), {
+    return new Response(JSON.stringify({ serverName: "Local Agent Assignment Server", tasks }), {
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -155,15 +162,16 @@ async function processTask(task: Task) {
     });
     await stash.output();
 
-    // Run the gemini command
-    const gemini = new Deno.Command("gemini", {
-      args: ["-p", task.prompt, "--approval-mode", "auto_edit"],
+    // Run the command
+    const processedArgs = args.map((arg) => arg === "AA_PROMPT" ? task.prompt : arg);
+    const cmd = new Deno.Command(command, {
+      args: processedArgs,
       cwd: repoPath,
     });
-    const { code: geminiCode, stderr: geminiStderr } = await gemini.output();
+    const { code, stderr } = await cmd.output();
 
-    if (geminiCode !== 0) {
-      throw new Error(`Gemini command failed with code ${geminiCode}: ${new TextDecoder().decode(geminiStderr)}`);
+    if (code !== 0) {
+      throw new Error(`Command failed with code ${code}: ${new TextDecoder().decode(stderr)}`);
     }
 
     // Commit the changes
